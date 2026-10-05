@@ -14,6 +14,8 @@ Un solo usuario, sin backend, sin cuentas. Los datos viven en IndexedDB.
 
 Antes de dar por terminada una tarea: `npm test && npm run build`.
 
+Deploy: cada push a `main` publica en https://truxxu.github.io/loans/ (GitHub Actions).
+
 ## Stack
 
 Vite, React 19, TypeScript estricto, Dexie (IndexedDB) con `dexie-react-hooks`,
@@ -83,7 +85,9 @@ Cualquier cambio a estas reglas va con tests en `src/lib/interest.test.ts`.
 
 Funciona de punta a punta: crear/editar/eliminar préstamos, registrar/editar/eliminar pagos
 (hoja inferior), historial con desglose interés/capital, lista con totales y filtros por estado,
-vista por persona, respaldo JSON, instalable y offline.
+vista por persona, tasa de mora opcional, respaldo JSON validado campo por campo,
+recordatorios de vencimiento (pestaña Ajustes), aviso de nueva versión, instalable y offline,
+desplegado en GitHub Pages.
 UI móvil, solo tema oscuro (rediseño "Préstamos - Rediseño" de claude.ai/design). El formulario
 no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
 
@@ -93,9 +97,9 @@ no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
 - [x] Filtros y totales en la lista (falta: totales por moneda si vuelve USD)
 - [x] Vista por destinatario (varios préstamos a la misma persona)
 - [x] Tasa de mora distinta a la tasa corriente
-- [ ] Préstamos en cuotas con plan de amortización
+- [ ] Préstamos en cuotas con plan de amortización (choca con la regla 7; decidir el modelo antes)
 - [x] Recordatorios de vencimiento (Notifications API; sin backend solo al abrir la app)
 - [x] Validar el respaldo importado campo por campo
 - [x] Aviso de "nueva versión disponible" en vez de `autoUpdate` silencioso
 - [x] Tests de componentes (Testing Library)
-- [ ] Deploy (GitHub Pages / Cloudflare Pages); `base: './'` ya lo permite
+- [x] Deploy en GitHub Pages (`.github/workflows/deploy.yml`, push a `main`)
