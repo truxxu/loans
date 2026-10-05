@@ -52,7 +52,8 @@ export async function deletePayment(id: string): Promise<void> {
   await db.payments.delete(id);
 }
 
-const BACKUP_VERSION = 2;
+/** v3: `lateInterestRate` opcional en los préstamos. */
+const BACKUP_VERSION = 3;
 
 export interface Backup {
   version: typeof BACKUP_VERSION;
@@ -70,7 +71,8 @@ export async function exportBackup(): Promise<Backup> {
 export async function importBackup(raw: unknown): Promise<void> {
   const data = raw as { version?: number; loans?: unknown; payments?: unknown } | null;
   if (
-    (data?.version !== 1 && data?.version !== BACKUP_VERSION) ||
+    !data ||
+    ![1, 2, BACKUP_VERSION].includes(data.version ?? 0) ||
     !Array.isArray(data.loans) ||
     !Array.isArray(data.payments)
   ) {

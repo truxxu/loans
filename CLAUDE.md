@@ -50,7 +50,10 @@ src/
    - Compuesto: interés sobre capital + interés pendiente.
 5. **Aplicación de pagos**: primero interés causado, luego capital. El excedente se
    reporta como `overpaid`.
-6. **Mora**: después del vencimiento el interés se sigue causando a la misma tasa.
+6. **Mora**: después del vencimiento el interés se sigue causando sobre todo el saldo, a la
+   tasa de mora (`lateInterestRate`, opcional, en la misma unidad que `ratePeriod`) o, si no
+   hay, a la tasa corriente. El tramo se parte en `dueDate`: los días posteriores son mora.
+   Un préstamo sin interés con tasa de mora causa interés simple solo en mora.
    El vencimiento (`dueDate`) es opcional; sin vencimiento el préstamo nunca queda en mora.
 7. **Modelo de pago**: abonos libres y, como mucho, una fecha de vencimiento. No hay cuotas.
 8. **Periodo de intereses**: los intereses se suelen pagar cada `interestPeriodDays` días
@@ -82,7 +85,7 @@ no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
 - [x] Editar un pago existente
 - [x] Filtros y totales en la lista (falta: totales por moneda si vuelve USD)
 - [x] Vista por destinatario (varios préstamos a la misma persona)
-- [ ] Tasa de mora distinta a la tasa corriente
+- [x] Tasa de mora distinta a la tasa corriente
 - [ ] Préstamos en cuotas con plan de amortización
 - [ ] Recordatorios de vencimiento (Notifications API; sin backend solo al abrir la app)
 - [ ] Validar el respaldo importado campo por campo (hoy solo valida la forma general)

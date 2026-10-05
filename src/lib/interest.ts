@@ -1,4 +1,4 @@
-import type { ISODate, Loan, LoanStatus, Payment } from '../types';
+import type { InterestType, ISODate, Loan, LoanStatus, Payment } from '../types';
 
 /**
  * Motor de cálculo. Funciones puras: el saldo NUNCA se guarda, siempre se
@@ -10,7 +10,8 @@ import type { ISODate, Loan, LoanStatus, Payment } from '../types';
  * - Simple: interés sobre el capital pendiente. El interés no pagado no capitaliza.
  * - Compuesto: interés sobre capital + interés pendiente (capitalización continua por días).
  * - Cada pago cubre primero el interés causado y luego el capital.
- * - Después del vencimiento el interés se sigue causando a la misma tasa.
+ * - Después del vencimiento el interés se sigue causando sobre todo el saldo, a la tasa de
+ *   mora (`lateInterestRate`) si el préstamo la tiene, o a la misma tasa si no.
  * - El vencimiento es opcional; sin vencimiento no hay mora.
  * - El periodo de pago de intereses (`interestPeriodDays`) es solo informativo.
  */
@@ -60,12 +61,30 @@ export interface LoanState {
   ledger: LedgerEntry[];
 }
 
-function accrue(loan: Loan, principal: number, interest: number, days: number): number {
-  if (days <= 0 || loan.interestType === 'none' || loan.interestRate <= 0) return 0;
+interface Accrual {
+  type: InterestType;
+  /** Porcentaje por `loan.ratePeriod`. */
+  rate: number;
+}
+
+/** Cómo se causa el interés hasta el vencimiento. */
+const regularAccrual = (loan: Loan): Accrual => ({ type: loan.interestType, rate: loan.interestRate });
+
+/**
+ * Cómo se causa el interés en mora. Un préstamo sin interés con tasa de mora causa
+ * interés simple a esa tasa.
+ */
+const lateAccrual = (loan: Loan): Accrual =>
+  loan.lateInterestRate === undefined
+    ? regularAccrual(loan)
+    : { type: loan.interestType === 'none' ? 'simple' : loan.interestType, rate: loan.lateInterestRate };
+
+function accrue(loan: Loan, { type, rate }: Accrual, principal: number, interest: number, days: number): number {
+  if (days <= 0 || type === 'none' || rate <= 0) return 0;
   const periods = days / DAYS_PER_PERIOD[loan.ratePeriod];
-  const rate = loan.interestRate / 100;
-  if (loan.interestType === 'simple') return principal * rate * periods;
-  return (principal + interest) * (Math.pow(1 + rate, periods) - 1);
+  const r = rate / 100;
+  if (type === 'simple') return principal * r * periods;
+  return (principal + interest) * (Math.pow(1 + r, periods) - 1);
 }
 
 export function computeLoanState(
@@ -85,11 +104,19 @@ export function computeLoanState(
   let pendingSince = loan.startDate;
   const ledger: LedgerEntry[] = [];
 
+  const regular = regularAccrual(loan);
+  const late = lateAccrual(loan);
+  const accrueUntil = (date: ISODate, accrual: Accrual) => {
+    interest += accrue(loan, accrual, principal, interest, daysBetween(cursor, date));
+    cursor = date;
+  };
+  /** Causa hasta `date`, partiendo el tramo en el vencimiento: los días posteriores son mora. */
   const advanceTo = (date: ISODate) => {
-    if (date > cursor) {
-      interest += accrue(loan, principal, interest, daysBetween(cursor, date));
-      cursor = date;
-    }
+    if (date <= cursor) return;
+    const due = loan.dueDate;
+    if (!due) return accrueUntil(date, regular);
+    if (cursor < due) accrueUntil(date < due ? date : due, regular);
+    if (date > cursor) accrueUntil(date, late);
   };
 
   for (const payment of sorted) {

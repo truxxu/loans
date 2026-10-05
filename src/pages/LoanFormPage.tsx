@@ -159,6 +159,33 @@ export function LoanFormPage() {
           </label>
         </div>
 
+        {form.dueDate && (
+          <div className="grid-2">
+            <label className="field">
+              Tasa de mora (%)
+              <input
+                className="input"
+                inputMode="decimal"
+                placeholder={form.interestType === 'none' ? 'Opcional' : 'Igual a la tasa'}
+                value={form.lateInterestRate}
+                onChange={(e) => set('lateInterestRate', e.target.value)}
+              />
+            </label>
+            {/* Con interés, la mora usa el periodo de la tasa corriente (ya visible arriba). */}
+            {form.interestType === 'none' && (
+              <div className="field">
+                <span id="late-period-label">Periodo de la tasa</span>
+                <div className="segmented segmented-fill" role="group" aria-labelledby="late-period-label">
+                  {seg('ratePeriod', [
+                    ['monthly', 'Mensual'],
+                    ['annual', 'Anual'],
+                  ])}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <label className="field">
           Notas
           <textarea className="input" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} />

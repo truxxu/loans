@@ -188,6 +188,12 @@ describe('loanDetail', () => {
     expect(v.nextInterest).toBeNull();
   });
 
+  it('condiciones con tasa de mora', () => {
+    expect(loanDetail(loan({ lateInterestRate: 3 }), [], '2025-02-01').conditions).toBe(
+      'Interés simple, 2% mensual; mora 3% mensual',
+    );
+  });
+
   it('sin interés', () => {
     const v = loanDetail(loan({ interestType: 'none', dueDate: undefined }), [], '2025-02-01');
     expect(v.conditions).toBe('Sin interés');

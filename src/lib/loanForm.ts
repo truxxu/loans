@@ -11,6 +11,8 @@ export interface LoanForm {
   interestType: InterestType;
   interestRate: string;
   ratePeriod: RatePeriod;
+  /** Vacío = la mora causa a la tasa corriente. */
+  lateInterestRate: string;
   interestPeriodDays: string;
   startDate: string;
   dueDate: string;
@@ -24,6 +26,7 @@ export const emptyLoanForm = (today: ISODate = todayISO()): LoanForm => ({
   interestType: 'simple',
   interestRate: '',
   ratePeriod: 'monthly',
+  lateInterestRate: '',
   interestPeriodDays: String(DEFAULT_INTEREST_PERIOD_DAYS),
   startDate: today,
   dueDate: '',
@@ -37,6 +40,7 @@ export const loanToForm = (loan: Loan): LoanForm => ({
   interestType: loan.interestType,
   interestRate: String(loan.interestRate),
   ratePeriod: loan.ratePeriod,
+  lateInterestRate: loan.lateInterestRate === undefined ? '' : String(loan.lateInterestRate),
   interestPeriodDays: String(loan.interestPeriodDays),
   startDate: loan.startDate,
   dueDate: loan.dueDate ?? '',
@@ -44,6 +48,7 @@ export const loanToForm = (loan: Loan): LoanForm => ({
 });
 
 const isPeriod = (n: number) => Number.isInteger(n) && n >= 1;
+const parseRate = (text: string) => Number(text.trim().replace(',', '.'));
 
 /**
  * Valida el formulario y arma el préstamo, o devuelve el mensaje de error para la UI.
@@ -57,7 +62,9 @@ export function parseLoanForm(
 ): { loan: Loan } | { error: string } {
   const principal = parseAmount(form.principal);
   const hasInterest = form.interestType !== 'none';
-  const rate = hasInterest ? Number(form.interestRate.replace(',', '.')) : 0;
+  const rate = hasInterest ? parseRate(form.interestRate) : 0;
+  // La tasa de mora solo aplica con vencimiento; sin él el campo está oculto y se descarta.
+  const lateRate = form.dueDate && form.lateInterestRate.trim() ? parseRate(form.lateInterestRate) : undefined;
   const typedPeriod = Number(form.interestPeriodDays);
   // Sin interés el campo está oculto: se conserva el periodo que tenía (si es válido)
   // para no perderlo si luego se vuelve a activar el interés.
@@ -66,6 +73,7 @@ export function parseLoanForm(
   if (!form.borrower.trim()) return { error: 'Escribe a quién le prestas.' };
   if (!principal || principal <= 0) return { error: 'El monto debe ser mayor que cero.' };
   if (hasInterest && !(rate > 0)) return { error: 'La tasa debe ser mayor que cero.' };
+  if (lateRate !== undefined && !(lateRate > 0)) return { error: 'La tasa de mora debe ser mayor que cero.' };
   if (!isPeriod(interestPeriodDays))
     return { error: 'El periodo de pago de intereses debe ser un número entero de días.' };
   const datesError = loanDatesError(form.startDate, form.dueDate, firstPaymentDate);
@@ -80,6 +88,7 @@ export function parseLoanForm(
       interestType: form.interestType,
       interestRate: rate,
       ratePeriod: form.ratePeriod,
+      lateInterestRate: lateRate,
       interestPeriodDays,
       startDate: form.startDate,
       dueDate: form.dueDate || undefined,

@@ -42,6 +42,7 @@ describe('parseLoanForm', () => {
     [{ interestRate: '' }, 'La tasa debe ser mayor que cero.'],
     [{ interestPeriodDays: '1.5' }, 'El periodo de pago de intereses debe ser un número entero de días.'],
     [{ startDate: '' }, 'Escribe la fecha del préstamo.'],
+    [{ dueDate: '2025-06-01', lateInterestRate: '0' }, 'La tasa de mora debe ser mayor que cero.'],
   ])('%o -> %s', (over, message) => {
     expect(errorOf(form(over))).toBe(message);
   });
@@ -60,6 +61,17 @@ describe('parseLoanForm', () => {
     expect(none('15')).toEqual([0, 15]);
     expect(none('abc')).toEqual([0, 30]);
   });
+
+  it('tasa de mora: opcional y solo con vencimiento', () => {
+    const late = (over: Partial<LoanForm>) => {
+      const r = parse(form(over));
+      return 'loan' in r ? r.loan.lateInterestRate : r.error;
+    };
+    expect(late({ dueDate: '2025-06-01', lateInterestRate: '3,5' })).toBe(3.5);
+    expect(late({ dueDate: '2025-06-01', lateInterestRate: ' ' })).toBeUndefined();
+    expect(late({ dueDate: '', lateInterestRate: 'x' })).toBeUndefined();
+    expect(late({ interestType: 'none', dueDate: '2025-06-01', lateInterestRate: '3' })).toBe(3);
+  });
 });
 
 describe('loanToForm', () => {
@@ -74,6 +86,7 @@ describe('loanToForm', () => {
       interestType: 'compound',
       startDate: '2025-01-01',
       dueDate: '2025-06-01',
+      lateInterestRate: 4,
       interestPeriodDays: 15,
       notes: 'nota',
       createdAt: 3,

@@ -149,6 +149,9 @@ export function loanDetail(loan: Loan, payments: Payment[], asOf: ISODate = toda
       : '');
   const conditions =
     TYPE_LABEL[loan.interestType] +
-    (loan.interestType !== 'none' ? `, ${loan.interestRate}% ${RATE_LABEL[loan.ratePeriod]}` : '');
+    (loan.interestType !== 'none' ? `, ${loan.interestRate}% ${RATE_LABEL[loan.ratePeriod]}` : '') +
+    (loan.dueDate && loan.lateInterestRate !== undefined
+      ? `; mora ${loan.lateInterestRate}% ${RATE_LABEL[loan.ratePeriod]}`
+      : '');
   return { state, nextInterest, interestLateSince, projected: projectedTotalAtDue(loan), dueText, conditions };
 }

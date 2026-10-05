@@ -18,6 +18,11 @@ export interface Loan {
   /** Tasa en porcentaje por `ratePeriod`. Ej: 2.5 = 2.5%. */
   interestRate: number;
   ratePeriod: RatePeriod;
+  /**
+   * Opcional: tasa en mora (después de `dueDate`), en porcentaje por `ratePeriod`.
+   * Sin ella, la mora causa a `interestRate`.
+   */
+  lateInterestRate?: number;
   interestType: InterestType;
   startDate: ISODate;
   /** Opcional: muchos préstamos no tienen fecha de vencimiento. */

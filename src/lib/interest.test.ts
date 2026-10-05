@@ -123,6 +123,57 @@ describe('computeLoanState', () => {
   });
 });
 
+describe('tasa de mora', () => {
+  // Vence a los 360 días (2025-12-27); 30 días de mora llegan al 2026-01-26.
+  const lateDate = addDays('2025-12-27', 30);
+
+  it('sin tasa de mora, la mora causa a la tasa corriente', () => {
+    const s = computeLoanState(loan(), [], lateDate);
+    expect(s.interestOutstanding).toBe(Math.round(1_000_000_00 * 0.1 * (390 / 360)));
+  });
+
+  it('simple: los días después del vencimiento causan a la tasa de mora', () => {
+    const l = loan({ lateInterestRate: 30 });
+    expect(computeLoanState(l, [], '2025-12-27').interestOutstanding).toBe(100_000_00);
+    const s = computeLoanState(l, [], lateDate);
+    expect(s.interestOutstanding).toBe(Math.round(100_000_00 + 1_000_000_00 * 0.3 * (30 / 360)));
+    expect(s.status).toBe('overdue');
+  });
+
+  it('compuesto: capitaliza a la tasa corriente y luego a la de mora', () => {
+    const l = loan({ interestType: 'compound', ratePeriod: 'monthly', interestRate: 2, lateInterestRate: 5 });
+    const s = computeLoanState(l, [], lateDate);
+    expect(s.balance).toBe(Math.round(1_000_000_00 * Math.pow(1.02, 12) * 1.05));
+  });
+
+  it('el tramo se parte en el vencimiento aunque un pago caiga en mora', () => {
+    const l = loan({ lateInterestRate: 30 });
+    const s = computeLoanState(l, [pay(lateDate, 100_000_00)], lateDate);
+    const owed = Math.round(100_000_00 + 1_000_000_00 * 0.3 * (30 / 360));
+    expect(s.ledger[0]?.interestDueBefore).toBe(owed);
+    expect(s.ledger[0]?.toInterest).toBe(100_000_00);
+    expect(s.interestOutstanding).toBe(owed - 100_000_00);
+  });
+
+  it('un pago antes del vencimiento no cambia la tasa de los días previos', () => {
+    const l = loan({ lateInterestRate: 30 });
+    const s = computeLoanState(l, [pay('2025-07-02', 500_000_00)], '2025-12-27');
+    const same = computeLoanState(loan(), [pay('2025-07-02', 500_000_00)], '2025-12-27');
+    expect(s.balance).toBe(same.balance);
+  });
+
+  it('sin interés con tasa de mora: causa interés simple solo en mora', () => {
+    const l = loan({ interestType: 'none', interestRate: 0, ratePeriod: 'monthly', lateInterestRate: 3 });
+    expect(computeLoanState(l, [], '2025-12-27').balance).toBe(1_000_000_00);
+    expect(computeLoanState(l, [], lateDate).interestOutstanding).toBe(30_000_00);
+  });
+
+  it('sin vencimiento la tasa de mora no aplica', () => {
+    const l = loan({ dueDate: undefined, lateInterestRate: 30 });
+    expect(computeLoanState(l, [], lateDate).balance).toBe(computeLoanState(loan({ dueDate: undefined }), [], lateDate).balance);
+  });
+});
+
 describe('nextInterestDate', () => {
   const l = loan({ dueDate: undefined });
 
