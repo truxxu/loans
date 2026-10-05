@@ -1,9 +1,9 @@
 import { Link, useParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { LoanCard } from '../components/LoanCard';
+import { Money } from '../components/Money';
 import { useLoans } from '../hooks/useLoans';
 import { groupByBorrower, plural } from '../lib/loanView';
-import { formatMoney } from '../lib/money';
 
 export function Person() {
   const { name = '' } = useParams();
@@ -29,7 +29,7 @@ export function Person() {
           </div>
           <div className="card summary-simple">
             <span className="muted small">Saldo total</span>
-            <span className="person-total">{formatMoney(person.balance, 'COP')}</span>
+            <span className="person-total"><Money value={person.balance} currency="COP" /></span>
           </div>
           <div className="stack-10">
             {person.items.map((item) => (

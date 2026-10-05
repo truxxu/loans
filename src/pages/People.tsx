@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
+import { HideAmountsButton } from '../components/HideAmountsButton';
+import { Money } from '../components/Money';
 import { StatusBadge } from '../components/StatusBadge';
 import { useLoans } from '../hooks/useLoans';
 import { groupByBorrower, plural } from '../lib/loanView';
-import { formatMoney } from '../lib/money';
 
 export function People() {
   const items = useLoans();
@@ -15,6 +16,7 @@ export function People() {
       <header className="screen-head">
         <span className="muted small">{plural(people.length, 'persona', 'personas')}</span>
         <h1>Personas</h1>
+        <HideAmountsButton />
       </header>
       <div className="stack-10">
         {people.map((p) => (
@@ -25,7 +27,9 @@ export function People() {
               <span className="muted small">{plural(p.items.length, 'préstamo', 'préstamos')}</span>
             </div>
             <div className="loan-card-right">
-              <span className="title-sm">{formatMoney(p.balance, 'COP')}</span>
+              <span className="title-sm">
+                <Money value={p.balance} currency="COP" />
+              </span>
               <StatusBadge status={p.status} />
             </div>
           </Link>

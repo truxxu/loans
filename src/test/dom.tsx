@@ -1,8 +1,9 @@
-import { cleanup, render } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen } from '@testing-library/react';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { db } from '../db';
+import { PrivacyProvider } from '../hooks/usePrivacy';
 import { formatMoney } from '../lib/money';
 import { LoanDetail } from '../pages/LoanDetail';
 import { LoanFormPage } from '../pages/LoanFormPage';
@@ -35,20 +36,23 @@ afterEach(() => {
 });
 
 /**
- * Monta las rutas de la app en `path`, sin `App` (que registra el service worker).
+ * Monta las rutas de la app en `path` dentro de `PrivacyProvider`, sin `App` (que registra
+ * el service worker).
  * Devuelve también un `user` de user-event.
  */
 export function renderAt(path: string) {
   const user = userEvent.setup();
   const view = render(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/" element={<LoanList />} />
-        <Route path="/nuevo" element={<LoanFormPage />} />
-        <Route path="/prestamo/:id" element={<LoanDetail />} />
-        <Route path="/prestamo/:id/editar" element={<LoanFormPage />} />
-        <Route path="/ajustes" element={<Settings />} />
-      </Routes>
+      <PrivacyProvider>
+        <Routes>
+          <Route path="/" element={<LoanList />} />
+          <Route path="/nuevo" element={<LoanFormPage />} />
+          <Route path="/prestamo/:id" element={<LoanDetail />} />
+          <Route path="/prestamo/:id/editar" element={<LoanFormPage />} />
+          <Route path="/ajustes" element={<Settings />} />
+        </Routes>
+      </PrivacyProvider>
     </MemoryRouter>,
   );
   return { user, ...view };
@@ -86,4 +90,9 @@ export const money = (minor: number) => formatMoney(minor, 'COP').replace(/\s/g,
 export async function seed(loans: Loan[], payments: Payment[] = []) {
   await db.loans.bulkAdd(loans);
   await db.payments.bulkAdd(payments);
+}
+
+/** Escribe un PIN en el teclado numérico (pantalla de bloqueo u hoja del PIN). */
+export async function typePin(user: UserEvent, pin: string) {
+  for (const d of pin) await user.click(screen.getByRole('button', { name: d }));
 }

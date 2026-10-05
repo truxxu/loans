@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { TabBar } from './components/TabBar';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { PrivacyProvider } from './hooks/usePrivacy';
 import { useReminders } from './hooks/useReminders';
 import { LoanDetail } from './pages/LoanDetail';
 import { LoanFormPage } from './pages/LoanFormPage';
@@ -22,17 +23,19 @@ export function App() {
   return (
     <div className="app">
       <UpdatePrompt />
-      <Routes>
-        <Route path="/" element={<LoanList />} />
-        <Route path="/personas" element={<People />} />
-        <Route path="/personas/:name" element={<Person />} />
-        <Route path="/nuevo" element={<LoanFormPage />} />
-        <Route path="/prestamo/:id" element={<LoanDetail />} />
-        <Route path="/prestamo/:id/editar" element={<LoanFormPage />} />
-        <Route path="/ajustes" element={<Settings />} />
-        <Route path="/respaldo" element={<Navigate to="/ajustes" replace />} />
-      </Routes>
-      {withTabs(pathname) && <TabBar />}
+      <PrivacyProvider>
+        <Routes>
+          <Route path="/" element={<LoanList />} />
+          <Route path="/personas" element={<People />} />
+          <Route path="/personas/:name" element={<Person />} />
+          <Route path="/nuevo" element={<LoanFormPage />} />
+          <Route path="/prestamo/:id" element={<LoanDetail />} />
+          <Route path="/prestamo/:id/editar" element={<LoanFormPage />} />
+          <Route path="/ajustes" element={<Settings />} />
+          <Route path="/respaldo" element={<Navigate to="/ajustes" replace />} />
+        </Routes>
+        {withTabs(pathname) && <TabBar />}
+      </PrivacyProvider>
     </div>
   );
 }

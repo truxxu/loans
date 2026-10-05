@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { deletePayment, newId, savePayment } from '../db';
 import { todayISO, type LoanState } from '../lib/interest';
-import { amountToInput, formatMoney, parseAmount } from '../lib/money';
+import { amountToInput, parseAmount } from '../lib/money';
 import { paymentDateError } from '../lib/validation';
 import type { Loan, Payment } from '../types';
+import { Money } from './Money';
 
 interface Props {
   loan: Loan;
@@ -30,8 +31,7 @@ export function PaymentSheet({ loan, state, payment, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const money = (v: number) => formatMoney(v, loan.currency);
-  const quick = editing
+    const quick = editing
     ? []
     : [
         { label: 'Interés pendiente', value: state.interestOutstanding },
@@ -92,7 +92,9 @@ export function PaymentSheet({ loan, state, payment, onClose }: Props) {
           <div className="chips-wrap">
             {quick.map((q) => (
               <button key={q.label} type="button" className="chip-quick" onClick={() => setAmount(amountToInput(q.value))}>
-                {q.label} · <strong>{money(q.value)}</strong>
+                {q.label} · <strong>
+                  <Money value={q.value} currency={loan.currency} />
+                </strong>
               </button>
             ))}
           </div>

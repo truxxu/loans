@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
+import { hashPin, loadPrivacySettings, savePrivacySettings, verifyPin } from '../lib/privacy';
 import { loadReminderSettings } from '../lib/settings';
-import { renderAt, seed, testLoan } from '../test/dom';
+import { renderAt, seed, testLoan, typePin } from '../test/dom';
 
 const file = (data: unknown) => new File([JSON.stringify(data)], 'respaldo.json', { type: 'application/json' });
 
@@ -49,5 +50,56 @@ describe('Settings', () => {
 
     await user.click(screen.getByRole('button', { name: 'Desactivar recordatorios' }));
     expect(loadReminderSettings().enabled).toBe(false);
+  });
+
+  it('activa el PIN pidiéndolo dos veces y permite bloquear al momento', async () => {
+    const { user } = renderAt('/ajustes');
+    await user.click(screen.getByRole('button', { name: 'Activar bloqueo con PIN' }));
+    const sheet = screen.getByRole('dialog', { name: 'Activar bloqueo con PIN' });
+
+    await typePin(user, '1234');
+    await user.click(within(sheet).getByRole('button', { name: 'Continuar' }));
+    await typePin(user, '1235');
+    expect(await within(sheet).findByText('Los PIN no coinciden. Inténtalo de nuevo.')).toBeTruthy();
+
+    await typePin(user, '123456'); // seis dígitos: continúa solo
+    expect(await within(sheet).findByText('Repite el PIN')).toBeTruthy();
+    await typePin(user, '123456');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await verifyPin('123456', loadPrivacySettings().pin!)).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: '5 min' }));
+    expect(loadPrivacySettings().lockAfterMs).toBe(300_000);
+    await user.click(screen.getByRole('button', { name: 'Bloquear ahora' }));
+    expect(screen.getByText('Ingresa tu PIN')).toBeTruthy();
+  });
+
+  it('cambiar y quitar el PIN piden el actual', async () => {
+    savePrivacySettings({ pin: await hashPin('1111'), lockAfterMs: 60_000, hideAmounts: false });
+    const { user } = renderAt('/ajustes');
+    await typePin(user, '1111'); // pantalla de bloqueo
+    await user.click(await screen.findByRole('button', { name: 'Cambiar PIN' }));
+
+    await typePin(user, '9999');
+    expect(await screen.findByText('PIN incorrecto.')).toBeTruthy();
+    await typePin(user, '1111');
+    await screen.findByText('Elige un PIN de 4 a 6 dígitos');
+    await typePin(user, '2222');
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
+    await typePin(user, '2222');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await verifyPin('2222', loadPrivacySettings().pin!)).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar PIN' }));
+    await typePin(user, '2222');
+    await waitFor(() => expect(loadPrivacySettings().pin).toBeNull());
+    expect(screen.getByRole('button', { name: 'Activar bloqueo con PIN' })).toBeTruthy();
+  });
+
+  it('el interruptor oculta los montos', async () => {
+    const { user } = renderAt('/ajustes');
+    await user.click(screen.getByRole('checkbox', { name: /Ocultar montos/ }));
+    expect(loadPrivacySettings().hideAmounts).toBe(true);
+    expect(document.documentElement.classList.contains('hide-amounts')).toBe(true);
   });
 });

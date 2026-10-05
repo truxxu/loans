@@ -23,8 +23,8 @@ describe('LoanList', () => {
     const { user } = renderAt('/');
     await screen.findByText('Ana');
 
-    expect(screen.getByText(money(1_200_000_00), { selector: '.summary-total' })).toBeTruthy();
-    expect(screen.getByText(money(1_000_000_00), { selector: '.summary-value' })).toBeTruthy();
+    expect(screen.getByText(money(1_200_000_00), { selector: '.summary-total .amount' })).toBeTruthy();
+    expect(screen.getByText(money(1_000_000_00), { selector: '.summary-value .amount' })).toBeTruthy();
     expect(['Ana', 'Beto', 'Carla'].every((n) => screen.queryByText(n))).toBe(true);
 
     await user.click(screen.getByRole('button', { name: /En mora/ }));

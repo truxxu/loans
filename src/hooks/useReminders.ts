@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { db } from '../db';
 import { todayISO } from '../lib/interest';
 import { loanItems } from '../lib/loanView';
+import { loadPrivacySettings } from '../lib/privacy';
 import { dueReminders, reminderText } from '../lib/reminders';
 import { lastReminderDate, loadReminderSettings, setLastReminderDate } from '../lib/settings';
 
@@ -15,7 +16,9 @@ async function remindIfDue(): Promise<void> {
   if (lastReminderDate() === today) return;
 
   const [loans, payments] = await Promise.all([db.loans.toArray(), db.payments.toArray()]);
-  const text = reminderText(dueReminders(loanItems(loans, payments, today), settings.leadDays));
+  const privacy = loadPrivacySettings();
+  const discreet = privacy.pin !== null || privacy.hideAmounts;
+  const text = reminderText(dueReminders(loanItems(loans, payments, today), settings.leadDays), discreet);
   if (!text) return;
 
   const options: NotificationOptions = { body: text.body, tag: 'prestamos-recordatorio', icon: 'icon-192.png' };

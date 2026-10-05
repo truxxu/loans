@@ -54,7 +54,7 @@ describe('LoanDetail', () => {
     await user.clear(amount);
     await user.type(amount, '20000');
     await user.click(within(sheet).getByRole('button', { name: 'Guardar cambios' }));
-    await screen.findByText(money(20_000_00), { selector: '.payment-amount' });
+    await screen.findByText(money(20_000_00), { selector: '.payment-amount .amount' });
     expect((await db.payments.get('p1'))?.amount).toBe(20_000_00);
 
     await user.click(screen.getByRole('button', { name: /Editar pago del/ }));

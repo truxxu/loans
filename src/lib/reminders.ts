@@ -1,5 +1,5 @@
 import type { Loan } from '../types';
-import type { LoanItem } from './loanView';
+import { plural, type LoanItem } from './loanView';
 import { formatMoney } from './money';
 
 /**
@@ -32,10 +32,22 @@ function when(daysToDue: number): string {
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** Título y cuerpo de una sola notificación que resume todos los recordatorios; null si no hay. */
-export function reminderText(reminders: Reminder[]): { title: string; body: string } | null {
+/**
+ * Título y cuerpo de una sola notificación que resume todos los recordatorios; null si no hay.
+ * `discreet` (bloqueo con PIN o montos ocultos): sin nombres ni montos, que la notificación
+ * se ve en la pantalla de bloqueo del teléfono.
+ */
+export function reminderText(reminders: Reminder[], discreet = false): { title: string; body: string } | null {
   const [first] = reminders;
   if (!first) return null;
+  if (discreet) {
+    const overdue = reminders.filter((r) => r.daysToDue < 0).length;
+    const count = plural(reminders.length, 'préstamo', 'préstamos');
+    return {
+      title: 'Préstamos',
+      body: overdue > 0 ? `${count} por cobrar (${overdue} en mora).` : `${count} por vencer.`,
+    };
+  }
   if (reminders.length === 1) {
     return {
       title: `Préstamo de ${first.loan.borrower}`,

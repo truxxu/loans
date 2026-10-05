@@ -1,7 +1,73 @@
 import { useState, type ChangeEvent } from 'react';
+import { PinSheet, type PinSheetMode } from '../components/PinSheet';
 import { exportBackup, importBackup } from '../db';
+import { usePrivacy } from '../hooks/usePrivacy';
 import { notificationsSupported } from '../hooks/useReminders';
+import { LOCK_AFTER_OPTIONS } from '../lib/privacy';
 import { isLeadDays, loadReminderSettings, saveReminderSettings, type ReminderSettings } from '../lib/settings';
+
+function Privacy() {
+  const { settings, update, lock } = usePrivacy();
+  const [sheet, setSheet] = useState<PinSheetMode | null>(null);
+
+  return (
+    <div className="card card-pad stack-10">
+      <h2>Privacidad</h2>
+      <label className="switch-row">
+        <span className="stack-2">
+          <span>Ocultar montos</span>
+          <span className="muted small">Difumina las cifras. También desde el ojo en Préstamos y Personas.</span>
+        </span>
+        <input
+          type="checkbox"
+          className="switch"
+          checked={settings.hideAmounts}
+          onChange={(e) => update({ hideAmounts: e.target.checked })}
+        />
+      </label>
+      {settings.pin ? (
+        <>
+          <div className="field">
+            <span id="lock-after">Pedir el PIN al volver a la app</span>
+            <div className="segmented" role="group" aria-labelledby="lock-after">
+              {LOCK_AFTER_OPTIONS.map(([ms, label]) => (
+                <button
+                  key={ms}
+                  type="button"
+                  className="seg-option"
+                  aria-pressed={settings.lockAfterMs === ms}
+                  onClick={() => update({ lockAfterMs: ms })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button type="button" className="button" onClick={lock}>
+            Bloquear ahora
+          </button>
+          <button type="button" className="button button-secondary" onClick={() => setSheet('change')}>
+            Cambiar PIN
+          </button>
+          <button type="button" className="button-danger" onClick={() => setSheet('remove')}>
+            Quitar PIN
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="muted small">
+            Pide un PIN al abrir la app y al volver después de un rato. Si lo olvidas, solo se puede borrar todo y
+            restaurar un respaldo.
+          </p>
+          <button type="button" className="button" onClick={() => setSheet('create')}>
+            Activar bloqueo con PIN
+          </button>
+        </>
+      )}
+      {sheet && <PinSheet mode={sheet} onClose={() => setSheet(null)} />}
+    </div>
+  );
+}
 
 function Reminders() {
   const [settings, setSettings] = useState(loadReminderSettings);
@@ -96,6 +162,7 @@ export function Settings() {
       <header className="screen-head">
         <h1>Ajustes</h1>
       </header>
+      <Privacy />
       <Reminders />
       <div className="card card-pad stack-10">
         <h2>Respaldo</h2>

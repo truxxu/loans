@@ -62,3 +62,10 @@ export async function importBackup(raw: unknown): Promise<void> {
     await db.payments.bulkAdd(data.payments);
   });
 }
+
+/** "Olvidé el PIN": borra préstamos y pagos de este dispositivo. */
+export async function wipeAllData(): Promise<void> {
+  await db.transaction('rw', db.loans, db.payments, async () => {
+    await Promise.all([db.loans.clear(), db.payments.clear()]);
+  });
+}
