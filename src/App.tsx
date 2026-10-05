@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { TabBar } from './components/TabBar';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { useReminders } from './hooks/useReminders';
 import { LoanDetail } from './pages/LoanDetail';
 import { LoanFormPage } from './pages/LoanFormPage';
@@ -20,6 +21,7 @@ export function App() {
   }, [pathname]);
   return (
     <div className="app">
+      <UpdatePrompt />
       <Routes>
         <Route path="/" element={<LoanList />} />
         <Route path="/personas" element={<People />} />

@@ -8,7 +8,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // El usuario decide cuándo actualizar (components/UpdatePrompt.tsx).
+      registerType: 'prompt',
       includeAssets: ['icon.svg', 'notification-click.js'],
       workbox: {
         // Abre/enfoca la app al tocar un recordatorio.

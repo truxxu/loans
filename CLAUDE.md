@@ -36,7 +36,8 @@ src/
   hooks/useLoans.ts   Todos los préstamos con su estado a hoy (useLiveQuery)
   hooks/useReminders.ts  Notificación de vencimientos al abrir/volver a la app
   pages/              LoanList, People, Person, LoanDetail, LoanFormPage, Settings (Ajustes)
-  components/         StatusBadge, Avatar, LoanCard, LoanNotFound, PaymentSheet, TabBar
+  components/         StatusBadge, Avatar, LoanCard, LoanNotFound, PaymentSheet, TabBar,
+                      UpdatePrompt (aviso de nueva versión del service worker)
 ```
 
 ## Reglas de negocio
@@ -93,6 +94,6 @@ no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
 - [ ] Préstamos en cuotas con plan de amortización
 - [x] Recordatorios de vencimiento (Notifications API; sin backend solo al abrir la app)
 - [x] Validar el respaldo importado campo por campo
-- [ ] Aviso de "nueva versión disponible" en vez de `autoUpdate` silencioso
+- [x] Aviso de "nueva versión disponible" en vez de `autoUpdate` silencioso
 - [ ] Tests de componentes (Testing Library)
 - [ ] Deploy (GitHub Pages / Cloudflare Pages); `base: './'` ya lo permite
