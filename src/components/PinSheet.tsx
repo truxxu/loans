@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { usePrivacy } from '../hooks/usePrivacy';
+import { usePinWait, usePrivacy } from '../hooks/usePrivacy';
 import { PinPad } from './PinPad';
 
 export type PinSheetMode = 'create' | 'change' | 'remove';
@@ -24,6 +24,8 @@ export function PinSheet({ mode, onClose }: { mode: PinSheetMode; onClose: () =>
   const [first, setFirst] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const { waiting, message: waitMessage, setWaitUntil } = usePinWait();
+  const blocked = step === 'current' && waiting;
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
@@ -37,9 +39,12 @@ export function PinSheet({ mode, onClose }: { mode: PinSheetMode; onClose: () =>
     setError('');
     if (step === 'current') {
       setBusy(true);
-      const ok = await checkPin(pin);
+      const result = await checkPin(pin);
       setBusy(false);
-      if (!ok) return setError('PIN incorrecto.');
+      if (!result.ok) {
+        setWaitUntil(result.lockedUntil);
+        return setError('PIN incorrecto.');
+      }
       if (mode === 'remove') {
         update({ pin: null });
         return onClose();
@@ -74,10 +79,16 @@ export function PinSheet({ mode, onClose }: { mode: PinSheetMode; onClose: () =>
         </div>
         <div className="stack-4 center-text">
           <span className="title">{PROMPT[step]}</span>
-          {error ? <p role="alert" className="error">{error}</p> : <span className="small">&nbsp;</span>}
+          {blocked || error ? (
+            <p role="alert" className="error">
+              {blocked ? waitMessage : error}
+            </p>
+          ) : (
+            <span className="small">&nbsp;</span>
+          )}
         </div>
         {/* key: cada paso empieza con el teclado vacío. */}
-        <PinPad key={step} length={length} disabled={busy} onSubmit={(pin) => void onSubmit(pin)} />
+        <PinPad key={step} length={length} disabled={busy || blocked} onSubmit={(pin) => void onSubmit(pin)} />
       </div>
     </div>
   );

@@ -96,6 +96,25 @@ describe('Bloqueo con PIN', () => {
     expect(screen.queryByText('Ana')).toBeNull();
   });
 
+  it('abrir el selector de archivos para importar no vuelve a bloquear al volver', async () => {
+    await withPin(0);
+    const { user } = renderAt('/ajustes');
+    await typePin(user, PIN);
+    const input = await screen.findByLabelText('Importar respaldo');
+
+    // El selector oculta la página (Android): al volver sigue abierta en Ajustes.
+    act(() => input.click());
+    setVisibility('hidden');
+    vi.setSystemTime(at('12:00:20'));
+    setVisibility('visible');
+    expect(screen.getByLabelText('Importar respaldo')).toBeTruthy();
+
+    // La excepción vale solo para esa salida: la siguiente bloquea como siempre.
+    setVisibility('hidden');
+    setVisibility('visible');
+    expect(screen.getByText('Ingresa tu PIN')).toBeTruthy();
+  });
+
   it('"Olvidé el PIN" borra todos los datos y los ajustes', async () => {
     await seed([testLoan()]);
     await withPin();

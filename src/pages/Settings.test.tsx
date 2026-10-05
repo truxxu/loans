@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
 import { BACKUP_VERSION, type Backup } from '../lib/backup';
 import { decryptBackup, encryptBackup, isEncryptedBackup } from '../lib/backupCrypto';
-import { hashPin, loadPrivacySettings, savePrivacySettings, verifyPin } from '../lib/privacy';
+import { hashPin, loadPinAttempts, loadPrivacySettings, savePrivacySettings, verifyPin } from '../lib/privacy';
 import { loadReminderSettings } from '../lib/settings';
 import { renderAt, seed, testLoan, typePin } from '../test/dom';
 
@@ -151,6 +151,26 @@ describe('Settings', () => {
     await typePin(user, '2222');
     await waitFor(() => expect(loadPrivacySettings().pin).toBeNull());
     expect(screen.getByRole('button', { name: 'Activar bloqueo con PIN' })).toBeTruthy();
+  });
+
+  it('cambiar el PIN cuenta los intentos fallidos igual que la pantalla de bloqueo', async () => {
+    savePrivacySettings({ pin: await hashPin('1111'), lockAfterMs: 60_000, hideAmounts: false });
+    const { user } = renderAt('/ajustes');
+    await typePin(user, '1111'); // pantalla de bloqueo
+    await user.click(await screen.findByRole('button', { name: 'Cambiar PIN' }));
+    const sheet = screen.getByRole('dialog', { name: 'Cambiar PIN' });
+
+    for (let i = 1; i <= 5; i++) {
+      await typePin(user, '9999');
+      await waitFor(() => expect(loadPinAttempts().failed).toBe(i));
+    }
+    expect((await within(sheet).findByRole('alert')).textContent).toBe('Demasiados intentos. Espera 30 s.');
+    expect(within(sheet).getByRole('button', { name: '1' }).hasAttribute('disabled')).toBe(true);
+
+    // Cerrar y reabrir la hoja no reinicia la espera.
+    await user.click(within(sheet).getByRole('button', { name: 'Cerrar' }));
+    await user.click(screen.getByRole('button', { name: 'Cambiar PIN' }));
+    expect(screen.getByRole('alert').textContent).toBe('Demasiados intentos. Espera 30 s.');
   });
 
   it('el interruptor oculta los montos', async () => {

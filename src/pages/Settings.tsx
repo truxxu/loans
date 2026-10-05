@@ -145,6 +145,7 @@ function download(name: string, text: string) {
 type BackupSheet = { mode: 'export' } | { mode: 'import'; envelope: EncryptedBackup };
 
 export function Settings() {
+  const { expectFilePicker } = usePrivacy();
   const [message, setMessage] = useState('');
   const [sheet, setSheet] = useState<BackupSheet | null>(null);
 
@@ -200,7 +201,7 @@ export function Settings() {
         </button>
         <label className="button button-secondary">
           Importar respaldo
-          <input type="file" accept="application/json" hidden onChange={onImport} />
+          <input type="file" accept="application/json" hidden onClick={expectFilePicker} onChange={onImport} />
         </label>
         <span className="muted small center-text">Importar reemplaza todos los datos actuales.</span>
         {message && <p role="status" className="alert-ok">{message}</p>}

@@ -96,6 +96,23 @@ export async function verifyPin(pin: string, stored: StoredPin): Promise<boolean
 export const shouldLock = (hiddenAt: number | null, now: number, lockAfterMs: number) =>
   hiddenAt !== null && now - hiddenAt >= lockAfterMs;
 
+/** Margen entre abrir el selector de archivos y que la página se oculte por él. */
+const PICKER_HIDE_MS = 5_000;
+/** Más tiempo fuera que esto ya no se atribuye al selector: se bloquea igual. */
+const PICKER_AWAY_MS = 5 * 60_000;
+
+/**
+ * ¿La salida la causó el selector de archivos de la propia app (importar respaldo)?
+ * En Android el selector es otra pantalla: bloquear al volver desmontaría el formulario
+ * y se perdería el archivo elegido.
+ */
+export const hiddenByPicker = (pickerOpenedAt: number | null, hiddenAt: number | null, now: number) =>
+  pickerOpenedAt !== null &&
+  hiddenAt !== null &&
+  hiddenAt >= pickerOpenedAt &&
+  hiddenAt - pickerOpenedAt <= PICKER_HIDE_MS &&
+  now - hiddenAt < PICKER_AWAY_MS;
+
 /** Intentos fallidos seguidos y hasta cuándo no se acepta otro intento (ms epoch). */
 export interface PinAttempts {
   failed: number;

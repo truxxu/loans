@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
-import type { UnlockResult } from '../hooks/usePrivacy';
-import { loadPinAttempts } from '../lib/privacy';
+import { useState } from 'react';
+import { usePinWait, type PinCheck } from '../hooks/usePrivacy';
 import { PinPad } from './PinPad';
 
 interface Props {
   pinLength: number;
-  unlock: (pin: string) => Promise<UnlockResult>;
+  unlock: (pin: string) => Promise<PinCheck>;
   onForgot: () => void;
 }
 
@@ -13,16 +12,7 @@ interface Props {
 export function LockScreen({ pinLength, unlock, onForgot }: Props) {
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
-  const [waitUntil, setWaitUntil] = useState(() => loadPinAttempts().lockedUntil);
-  const [, tick] = useState(0);
-  const waitSeconds = Math.ceil((waitUntil - Date.now()) / 1000);
-  const waiting = waitSeconds > 0;
-
-  useEffect(() => {
-    if (!waiting) return;
-    const id = setInterval(() => tick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, [waiting]);
+  const { waiting, message: waitMessage, setWaitUntil } = usePinWait();
 
   async function onSubmit(pin: string) {
     setChecking(true);
@@ -44,7 +34,7 @@ export function LockScreen({ pinLength, unlock, onForgot }: Props) {
         </span>
         <h1 className="h1-xs">Ingresa tu PIN</h1>
         <p role="alert" className={waiting || error ? 'error' : 'muted small'}>
-          {waiting ? `Demasiados intentos. Espera ${waitSeconds} s.` : error || 'Préstamos está bloqueada.'}
+          {waiting ? waitMessage : error || 'Préstamos está bloqueada.'}
         </p>
       </div>
       <PinPad

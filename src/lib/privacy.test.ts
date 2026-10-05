@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_PRIVACY_SETTINGS,
   hashPin,
+  hiddenByPicker,
   isValidPin,
   loadPinAttempts,
   loadPrivacySettings,
@@ -45,6 +46,17 @@ describe('shouldLock', () => {
     expect(shouldLock(1_000, 60_999, 60_000)).toBe(false);
     expect(shouldLock(1_000, 61_000, 60_000)).toBe(true);
     expect(shouldLock(1_000, 1_000, 0)).toBe(true);
+  });
+});
+
+describe('hiddenByPicker', () => {
+  it('solo si se ocultó justo después de abrir el selector y volvió en menos de 5 min', () => {
+    expect(hiddenByPicker(1_000, 1_500, 60_000)).toBe(true);
+    expect(hiddenByPicker(null, 1_500, 60_000)).toBe(false);
+    expect(hiddenByPicker(1_000, null, 60_000)).toBe(false);
+    expect(hiddenByPicker(1_000, 500, 60_000)).toBe(false); // oculta desde antes
+    expect(hiddenByPicker(1_000, 6_001, 60_000)).toBe(false); // selector cancelado, salió después
+    expect(hiddenByPicker(1_000, 1_500, 1_500 + 5 * 60_000)).toBe(false); // fuera demasiado tiempo
   });
 });
 
