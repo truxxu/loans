@@ -28,17 +28,22 @@ export function Settings() {
   }
 
   return (
-    <section>
-      <h1>Respaldo</h1>
-      <p>Los datos viven solo en este navegador. Exporta un respaldo con regularidad.</p>
-      <div className="row actions">
-        <button className="button" onClick={onExport}>Exportar respaldo</button>
-        <label className="button-ghost">
+    <section className="screen">
+      <header className="screen-head">
+        <h1>Respaldo</h1>
+      </header>
+      <p className="lead">Los datos viven solo en este navegador. Exporta un respaldo con regularidad.</p>
+      <div className="stack-10">
+        <button type="button" className="button" onClick={onExport}>
+          Exportar respaldo
+        </button>
+        <label className="button button-secondary">
           Importar respaldo
           <input type="file" accept="application/json" hidden onChange={onImport} />
         </label>
+        <span className="muted small center-text">Importar reemplaza todos los datos actuales.</span>
       </div>
-      {message && <p role="status">{message}</p>}
+      {message && <p role="status" className="alert-ok">{message}</p>}
     </section>
   );
 }

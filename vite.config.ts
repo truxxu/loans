@@ -10,6 +10,20 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
+      workbox: {
+        // Geist viene de Google Fonts; se guarda en caché para que funcione offline.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'Préstamos',
         short_name: 'Préstamos',
@@ -17,8 +31,8 @@ export default defineConfig({
         lang: 'es',
         display: 'standalone',
         start_url: '.',
-        theme_color: '#14342b',
-        background_color: '#f6f7f4',
+        theme_color: '#0c1210',
+        background_color: '#0c1210',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },

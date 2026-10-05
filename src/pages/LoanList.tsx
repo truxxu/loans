@@ -1,61 +1,83 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { Link } from 'react-router-dom';
-import { StatusBadge } from '../components/StatusBadge';
-import { db } from '../db';
-import { computeLoanState, nextInterestDate } from '../lib/interest';
+import { useState } from 'react';
+import { LoanCard } from '../components/LoanCard';
+import { useLoans } from '../hooks/useLoans';
+import { todayISO } from '../lib/interest';
+import { listTotals, plural } from '../lib/loanView';
 import { formatDate, formatMoney } from '../lib/money';
-import type { Loan, LoanStatus } from '../types';
+import type { LoanStatus } from '../types';
 
-function subtitle(loan: Loan, status: LoanStatus): string {
-  if (loan.dueDate) return `Vence el ${formatDate(loan.dueDate)}`;
-  const next = status === 'paid' ? null : nextInterestDate(loan);
-  return next ? `Intereses el ${formatDate(next)}` : 'Sin fecha de vencimiento';
-}
+type Filter = 'all' | LoanStatus;
+const FILTERS: [Filter, string][] = [
+  ['all', 'Todos'],
+  ['active', 'Al día'],
+  ['overdue', 'En mora'],
+  ['paid', 'Pagados'],
+];
 
 export function LoanList() {
-  const data = useLiveQuery(async () => {
-    const [loans, payments] = await Promise.all([db.loans.toArray(), db.payments.toArray()]);
-    return loans
-      .map((loan) => ({ loan, state: computeLoanState(loan, payments) }))
-      .sort(
-        (a, b) =>
-          // Sin vencimiento al final; luego por fecha del préstamo.
-          (a.loan.dueDate ?? '9999').localeCompare(b.loan.dueDate ?? '9999') ||
-          a.loan.startDate.localeCompare(b.loan.startDate),
-      );
-  }, []);
+  const items = useLoans();
+  const [filter, setFilter] = useState<Filter>('all');
 
-  if (!data) return null;
+  if (!items) return null;
+  const totals = listTotals(items);
+  const cop = (v: number) => formatMoney(v, 'COP');
+  const visible = filter === 'all' ? items : items.filter((i) => i.state.status === filter);
 
   return (
-    <section>
-      <div className="row">
+    <section className="screen">
+      <header className="screen-head">
+        <span className="muted small">Hoy, {formatDate(todayISO())}</span>
         <h1>Préstamos</h1>
-        <Link className="button" to="/nuevo">
-          Nuevo préstamo
-        </Link>
+      </header>
+
+      <div className="card summary">
+        <div className="stack-4">
+          <span className="muted small">Por cobrar</span>
+          <span className="summary-total">{cop(totals.outstanding)}</span>
+        </div>
+        <div className="summary-split">
+          <div className="stack-4">
+            <span className="muted xsmall">En mora</span>
+            <span className="summary-value warn">{cop(totals.overdue)}</span>
+            <span className="muted xsmall">{plural(totals.overdueCount, 'préstamo', 'préstamos')}</span>
+          </div>
+          <div className="stack-4">
+            <span className="muted xsmall">Intereses pendientes</span>
+            <span className="summary-value gold">{cop(totals.interest)}</span>
+            <span className="muted xsmall">{plural(totals.openCount, 'préstamo abierto', 'préstamos abiertos')}</span>
+          </div>
+        </div>
       </div>
 
-      {data.length === 0 ? (
-        <p className="empty">Aún no hay préstamos. Registra el primero para empezar a llevar el control.</p>
-      ) : (
-        <ul className="list">
-          {data.map(({ loan, state }) => (
-            <li key={loan.id}>
-              <Link to={`/prestamo/${loan.id}`} className="list-item">
-                <div>
-                  <strong>{loan.borrower}</strong>
-                  <small>{subtitle(loan, state.status)}</small>
-                </div>
-                <div className="right">
-                  <span className="amount">{formatMoney(state.balance, loan.currency)}</span>
-                  <StatusBadge status={state.status} />
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="chips" role="group" aria-label="Filtrar por estado">
+        {FILTERS.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className="chip"
+            aria-pressed={filter === key}
+            onClick={() => setFilter(key)}
+          >
+            {label}
+            <span className="chip-count">
+              {key === 'all' ? items.length : items.filter((i) => i.state.status === key).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="stack-10">
+        {visible.map((item) => (
+          <LoanCard key={item.loan.id} item={item} />
+        ))}
+        {visible.length === 0 && (
+          <p className="empty">
+            {items.length === 0
+              ? 'Aún no hay préstamos. Registra el primero para empezar a llevar el control.'
+              : 'No hay préstamos con este estado.'}
+          </p>
+        )}
+      </div>
     </section>
   );
 }

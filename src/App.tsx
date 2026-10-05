@@ -1,27 +1,34 @@
-import { Link, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { TabBar } from './components/TabBar';
 import { LoanDetail } from './pages/LoanDetail';
 import { LoanFormPage } from './pages/LoanFormPage';
 import { LoanList } from './pages/LoanList';
+import { People } from './pages/People';
+import { Person } from './pages/Person';
 import { Settings } from './pages/Settings';
 
+/** Pantallas con barra de pestañas; detalle y formulario tienen su propio botón fijo. */
+const withTabs = (path: string) => path === '/' || path === '/respaldo' || path.startsWith('/personas');
+
 export function App() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
   return (
     <div className="app">
-      <header className="topbar">
-        <Link to="/" className="brand">
-          Préstamos
-        </Link>
-        <Link to="/ajustes">Respaldo</Link>
-      </header>
-      <main>
-        <Routes>
-          <Route path="/" element={<LoanList />} />
-          <Route path="/nuevo" element={<LoanFormPage />} />
-          <Route path="/prestamo/:id" element={<LoanDetail />} />
-          <Route path="/prestamo/:id/editar" element={<LoanFormPage />} />
-          <Route path="/ajustes" element={<Settings />} />
-        </Routes>
-      </main>
+      <Routes>
+        <Route path="/" element={<LoanList />} />
+        <Route path="/personas" element={<People />} />
+        <Route path="/personas/:name" element={<Person />} />
+        <Route path="/nuevo" element={<LoanFormPage />} />
+        <Route path="/prestamo/:id" element={<LoanDetail />} />
+        <Route path="/prestamo/:id/editar" element={<LoanFormPage />} />
+        <Route path="/respaldo" element={<Settings />} />
+        <Route path="/ajustes" element={<Navigate to="/respaldo" replace />} />
+      </Routes>
+      {withTabs(pathname) && <TabBar />}
     </div>
   );
 }

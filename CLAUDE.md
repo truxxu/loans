@@ -27,8 +27,10 @@ src/
   db.ts               Esquema Dexie, borrado en cascada, exportar/importar respaldo
   lib/interest.ts     Motor de cálculo (funciones puras) + tests
   lib/money.ts        Parseo y formato de montos y fechas + tests
-  pages/              LoanList, LoanDetail, LoanFormPage, Settings
-  components/         StatusBadge
+  lib/loanView.ts     Datos derivados para las vistas (totales, personas, detalle) + tests
+  hooks/useLoans.ts   Todos los préstamos con su estado a hoy (useLiveQuery)
+  pages/              LoanList, People, Person, LoanDetail, LoanFormPage, Settings (Respaldo)
+  components/         StatusBadge, Avatar, LoanCard, PaymentSheet, TabBar
 ```
 
 ## Reglas de negocio
@@ -67,19 +69,21 @@ Cualquier cambio a estas reglas va con tests en `src/lib/interest.test.ts`.
 
 ## Estado actual
 
-Funciona de punta a punta: crear/editar/eliminar préstamos, registrar y eliminar pagos,
-historial con desglose interés/capital, respaldo JSON, instalable y offline.
-La UI es deliberadamente básica.
+Funciona de punta a punta: crear/editar/eliminar préstamos, registrar/editar/eliminar pagos
+(hoja inferior), historial con desglose interés/capital, lista con totales y filtros por estado,
+vista por persona, respaldo JSON, instalable y offline.
+UI móvil, solo tema oscuro (rediseño "Préstamos - Rediseño" de claude.ai/design). El formulario
+no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
 
 ## Backlog sugerido
 
-- [ ] Editar un pago existente
-- [ ] Filtros y totales en la lista (total prestado, total en mora, por moneda)
-- [ ] Vista por destinatario (varios préstamos a la misma persona)
+- [x] Editar un pago existente
+- [x] Filtros y totales en la lista (falta: totales por moneda si vuelve USD)
+- [x] Vista por destinatario (varios préstamos a la misma persona)
 - [ ] Tasa de mora distinta a la tasa corriente
 - [ ] Préstamos en cuotas con plan de amortización
 - [ ] Recordatorios de vencimiento (Notifications API; sin backend solo al abrir la app)
 - [ ] Validar el respaldo importado campo por campo (hoy solo valida la forma general)
 - [ ] Aviso de "nueva versión disponible" en vez de `autoUpdate` silencioso
-- [ ] Tests de componentes (Testing Library) y pulido visual
+- [ ] Tests de componentes (Testing Library)
 - [ ] Deploy (GitHub Pages / Cloudflare Pages); `base: './'` ya lo permite

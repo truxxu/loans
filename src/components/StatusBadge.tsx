@@ -1,7 +1,6 @@
+import { STATUS_LABEL } from '../lib/loanView';
 import type { LoanStatus } from '../types';
 
-const LABEL: Record<LoanStatus, string> = { active: 'Al día', overdue: 'En mora', paid: 'Pagado' };
-
 export function StatusBadge({ status }: { status: LoanStatus }) {
-  return <span className={`badge badge-${status}`}>{LABEL[status]}</span>;
+  return <span className={`badge badge-${status}`}>{STATUS_LABEL[status]}</span>;
 }

@@ -37,6 +37,11 @@ export async function deleteLoan(id: string): Promise<void> {
   });
 }
 
+/** Crea o reemplaza un pago (editar un pago recalcula todo: el saldo nunca se guarda). */
+export async function savePayment(payment: Payment): Promise<void> {
+  await db.payments.put(payment);
+}
+
 export interface Backup {
   version: 2;
   exportedAt: string;

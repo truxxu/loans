@@ -58,8 +58,10 @@ export function LoanFormPage() {
     });
   }, [id]);
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
+    setError('');
+  };
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -94,84 +96,124 @@ export function LoanFormPage() {
     navigate(`/prestamo/${loan.id}`, { replace: true });
   }
 
+  const seg = <K extends 'interestType' | 'ratePeriod'>(key: K, opts: [FormState[K], string][]) =>
+    opts.map(([value, label]) => (
+      <button
+        key={value}
+        type="button"
+        className="seg-option"
+        aria-pressed={form[key] === value}
+        onClick={() => set(key, value)}
+      >
+        {label}
+      </button>
+    ));
+
   return (
-    <form onSubmit={onSubmit} className="form">
-      <h1>{existing ? 'Editar préstamo' : 'Nuevo préstamo'}</h1>
+    <form onSubmit={onSubmit} noValidate>
+      <section className="screen screen-sub">
+        <div className="topnav">
+          <button type="button" className="back" onClick={() => navigate(-1)}>
+            Cancelar
+          </button>
+        </div>
+        <h1 className="h1-md">{existing ? 'Editar préstamo' : 'Nuevo préstamo'}</h1>
 
-      <label>
-        Destinatario
-        <input value={form.borrower} onChange={(e) => set('borrower', e.target.value)} autoFocus />
-      </label>
+        <label className="field">
+          Destinatario
+          <input
+            className="input input-lg"
+            placeholder="Nombre"
+            value={form.borrower}
+            onChange={(e) => set('borrower', e.target.value)}
+            autoFocus
+          />
+        </label>
 
-      <div className="grid-2">
-        <label>
+        <label className="field">
           Monto
-          <input inputMode="decimal" value={form.principal} onChange={(e) => set('principal', e.target.value)} />
-        </label>
-        <label>
-          Moneda
-          <select value={form.currency} onChange={(e) => set('currency', e.target.value as Currency)}>
-            <option value="COP">COP</option>
-            <option value="USD">USD</option>
-          </select>
-        </label>
-      </div>
-
-      <label>
-        Tipo de interés
-        <select value={form.interestType} onChange={(e) => set('interestType', e.target.value as InterestType)}>
-          <option value="none">Sin interés</option>
-          <option value="simple">Simple</option>
-          <option value="compound">Compuesto</option>
-        </select>
-      </label>
-
-      {form.interestType !== 'none' && (
-        <div className="grid-2">
-          <label>
-            Tasa (%)
-            <input inputMode="decimal" value={form.interestRate} onChange={(e) => set('interestRate', e.target.value)} />
-          </label>
-          <label>
-            Periodo de la tasa
-            <select value={form.ratePeriod} onChange={(e) => set('ratePeriod', e.target.value as RatePeriod)}>
-              <option value="monthly">Mensual</option>
-              <option value="annual">Anual</option>
-            </select>
-          </label>
-          <label>
-            Pago de intereses cada (días)
+          <span className="input input-affix">
+            <span className="affix" aria-hidden="true">$</span>
             <input
-              inputMode="numeric"
-              value={form.interestPeriodDays}
-              onChange={(e) => set('interestPeriodDays', e.target.value)}
+              inputMode="decimal"
+              placeholder="0"
+              value={form.principal}
+              onChange={(e) => set('principal', e.target.value)}
+            />
+          </span>
+        </label>
+
+        <div className="field">
+          <span id="type-label">Tipo de interés</span>
+          <div className="segmented" role="group" aria-labelledby="type-label">
+            {seg('interestType', [
+              ['none', 'Sin interés'],
+              ['simple', 'Simple'],
+              ['compound', 'Compuesto'],
+            ])}
+          </div>
+        </div>
+
+        {form.interestType !== 'none' && (
+          <div className="panel">
+            <div className="grid-2">
+              <label className="field">
+                Tasa (%)
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  placeholder="2"
+                  value={form.interestRate}
+                  onChange={(e) => set('interestRate', e.target.value)}
+                />
+              </label>
+              <div className="field">
+                <span id="period-label">Periodo de la tasa</span>
+                <div className="segmented segmented-fill" role="group" aria-labelledby="period-label">
+                  {seg('ratePeriod', [
+                    ['monthly', 'Mensual'],
+                    ['annual', 'Anual'],
+                  ])}
+                </div>
+              </div>
+            </div>
+            <label className="field">
+              Pago de intereses cada (días)
+              <input
+                className="input"
+                inputMode="numeric"
+                value={form.interestPeriodDays}
+                onChange={(e) => set('interestPeriodDays', e.target.value)}
+              />
+            </label>
+          </div>
+        )}
+
+        <div className="grid-2">
+          <label className="field">
+            Fecha del préstamo
+            <input
+              type="date"
+              className="input"
+              value={form.startDate}
+              onChange={(e) => set('startDate', e.target.value)}
             />
           </label>
+          <label className="field">
+            Vencimiento (opcional)
+            <input type="date" className="input" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
+          </label>
         </div>
-      )}
 
-      <div className="grid-2">
-        <label>
-          Fecha del préstamo
-          <input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
+        <label className="field">
+          Notas
+          <textarea className="input" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
         </label>
-        <label>
-          Fecha de vencimiento (opcional)
-          <input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
-        </label>
-      </div>
 
-      <label>
-        Notas
-        <textarea rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
-      </label>
+        {error && <p role="alert" className="error">{error}</p>}
+      </section>
 
-      {error && <p role="alert" className="error">{error}</p>}
-
-      <div className="row">
-        <button type="button" className="button-ghost" onClick={() => navigate(-1)}>
-          Cancelar
-        </button>
+      <div className="sticky-cta">
         <button type="submit" className="button">
           Guardar préstamo
         </button>
