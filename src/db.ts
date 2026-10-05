@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import { BACKUP_VERSION, parseBackup, withLoanDefaults, type Backup } from './lib/backup';
+import { encryptBackup, type EncryptedBackup } from './lib/backupCrypto';
 import type { Loan, Payment } from './types';
 
 class LoansDB extends Dexie {
@@ -50,6 +51,11 @@ export async function deletePayment(id: string): Promise<void> {
 export async function exportBackup(): Promise<Backup> {
   const [loans, payments] = await Promise.all([db.loans.toArray(), db.payments.toArray()]);
   return { version: BACKUP_VERSION, exportedAt: new Date().toISOString(), loans, payments };
+}
+
+/** El respaldo que se descarga: siempre cifrado con la contraseña que elige el usuario. */
+export async function exportEncryptedBackup(password: string): Promise<EncryptedBackup> {
+  return encryptBackup(await exportBackup(), password);
 }
 
 /** Reemplaza todos los datos locales por los del respaldo, si es válido campo por campo. */

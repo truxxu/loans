@@ -2,6 +2,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
+import { BACKUP_VERSION, type Backup } from '../lib/backup';
+import { decryptBackup, encryptBackup, isEncryptedBackup } from '../lib/backupCrypto';
 import { hashPin, loadPrivacySettings, savePrivacySettings, verifyPin } from '../lib/privacy';
 import { loadReminderSettings } from '../lib/settings';
 import { renderAt, seed, testLoan, typePin } from '../test/dom';
@@ -26,6 +28,61 @@ describe('Settings', () => {
     await user.upload(screen.getByLabelText('Importar respaldo'), file(good));
 
     expect((await screen.findByRole('status')).textContent).toBe('Respaldo importado.');
+    expect((await db.loans.toArray()).map((l) => l.borrower)).toEqual(['Beto']);
+  });
+
+  it('exportar pide la contraseña dos veces y descarga un respaldo cifrado', async () => {
+    await seed([testLoan()]);
+    let blob: Blob | undefined;
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((b) => ((blob = b as Blob), 'blob:x'));
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const { user } = renderAt('/ajustes');
+
+    await user.click(screen.getByRole('button', { name: 'Exportar respaldo' }));
+    const sheet = screen.getByRole('dialog', { name: 'Exportar respaldo' });
+    const submit = within(sheet).getByRole('button', { name: 'Exportar respaldo cifrado' });
+    await user.type(within(sheet).getByLabelText('Contraseña'), 'corta');
+    await user.click(submit);
+    expect(within(sheet).getByRole('alert').textContent).toBe('La contraseña debe tener al menos 8 caracteres.');
+
+    await user.type(within(sheet).getByLabelText('Contraseña'), ' pero ya no');
+    await user.type(within(sheet).getByLabelText('Repetir contraseña'), 'otra cosa');
+    await user.click(submit);
+    expect(within(sheet).getByRole('alert').textContent).toBe('Las contraseñas no coinciden.');
+
+    await user.clear(within(sheet).getByLabelText('Repetir contraseña'));
+    await user.type(within(sheet).getByLabelText('Repetir contraseña'), 'corta pero ya no');
+    await user.click(submit);
+    expect((await screen.findByRole('status', {}, { timeout: 5000 })).textContent).toBe('Respaldo cifrado exportado.');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(click).toHaveBeenCalled();
+
+    const envelope: unknown = JSON.parse(await blob!.text());
+    expect(isEncryptedBackup(envelope)).toBe(true);
+    if (!isEncryptedBackup(envelope)) return;
+    const backup = (await decryptBackup(envelope, 'corta pero ya no')) as { loans: { id: string }[] };
+    expect(backup.loans.map((l) => l.id)).toEqual(['l1']);
+  });
+
+  it('importar un respaldo cifrado pide la contraseña y solo reemplaza los datos si es correcta', async () => {
+    await seed([testLoan()]);
+    const data: Backup = { version: BACKUP_VERSION, exportedAt: '', loans: [testLoan({ id: 'x', borrower: 'Beto' })], payments: [] };
+    const envelope = await encryptBackup(data, 'clave secreta', 1000);
+    const { user } = renderAt('/ajustes');
+    await user.upload(screen.getByLabelText('Importar respaldo'), file(envelope));
+
+    const sheet = await screen.findByRole('dialog', { name: 'Importar respaldo' });
+    await user.type(within(sheet).getByLabelText('Contraseña del respaldo'), 'clave equivocada');
+    await user.click(within(sheet).getByRole('button', { name: 'Descifrar e importar' }));
+    expect((await within(sheet).findByRole('alert')).textContent).toBe('Contraseña incorrecta o archivo dañado.');
+    expect((await db.loans.toArray()).map((l) => l.id)).toEqual(['l1']);
+
+    await user.clear(within(sheet).getByLabelText('Contraseña del respaldo'));
+    await user.type(within(sheet).getByLabelText('Contraseña del respaldo'), 'clave secreta');
+    await user.click(within(sheet).getByRole('button', { name: 'Descifrar e importar' }));
+    expect((await screen.findByRole('status')).textContent).toBe('Respaldo importado.');
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect((await db.loans.toArray()).map((l) => l.borrower)).toEqual(['Beto']);
   });
 

@@ -1,3 +1,4 @@
+import { fromBase64, toBase64 } from './base64';
 import { readJSON, writeItem } from './storage';
 
 /**
@@ -68,9 +69,6 @@ export function loadPrivacySettings(): PrivacySettings {
 }
 
 export const savePrivacySettings = (settings: PrivacySettings) => writeItem(SETTINGS_KEY, JSON.stringify(settings));
-
-const toBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
-const fromBase64 = (text: string) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 
 async function derive(pin: string, salt: Uint8Array<ArrayBuffer>, iterations: number): Promise<string> {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);

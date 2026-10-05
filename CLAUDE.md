@@ -29,6 +29,8 @@ src/
   types.ts            Loan, Payment y tipos auxiliares
   db.ts               Esquema Dexie, borrado en cascada, exportar/importar respaldo
   lib/backup.ts       Formato del respaldo y validación campo por campo + tests
+  lib/backupCrypto.ts Sobre cifrado del respaldo (PBKDF2 + AES-GCM, contraseña propia) + tests
+  lib/base64.ts       Base64 de bytes por bloques (respaldo cifrado, hash del PIN)
   lib/interest.ts     Motor de cálculo (funciones puras) + tests
   lib/money.ts        Parseo y formato de montos y fechas + tests
   lib/loanView.ts     Datos derivados para las vistas (totales, personas, detalle) + tests
@@ -46,7 +48,7 @@ src/
   components/         StatusBadge, Avatar, LoanCard, LoanNotFound, PaymentSheet, TabBar,
                       UpdatePrompt (aviso de nueva versión del service worker),
                       Money (monto que se difumina), LockScreen, PinPad, PinSheet,
-                      HideAmountsButton
+                      HideAmountsButton, BackupPasswordSheet (contraseña del respaldo)
 ```
 
 ## Reglas de negocio
@@ -83,7 +85,10 @@ Cualquier cambio a estas reglas va con tests en `src/lib/interest.test.ts`.
 - Lógica de negocio en `src/lib` como funciones puras y testeadas; los componentes solo
   leen de Dexie con `useLiveQuery` y llaman a esas funciones.
 - Cambios al esquema de IndexedDB: nueva `this.version(n)` en `db.ts` con `upgrade` si
-  hace falta, y subir `Backup.version` si cambia el formato del respaldo.
+  hace falta, y subir `Backup.version` si cambia el formato del respaldo. El sobre cifrado
+  (`lib/backupCrypto.ts`) tiene su propia versión, independiente de `Backup.version`.
+- El respaldo se exporta siempre cifrado con una contraseña propia (no el PIN); importar acepta
+  también los respaldos viejos en claro. Lo descifrado pasa por `parseBackup` igual que uno en claro.
 - Botones nombrados por la acción concreta ("Registrar pago", no "Enviar").
 - Montos en la UI siempre con `<Money>`, no `formatMoney` directo, para que "Ocultar montos"
   los difumine.
@@ -92,7 +97,7 @@ Cualquier cambio a estas reglas va con tests en `src/lib/interest.test.ts`.
 
 Funciona de punta a punta: crear/editar/eliminar préstamos, registrar/editar/eliminar pagos
 (hoja inferior), historial con desglose interés/capital, lista con totales y filtros por estado,
-vista por persona, tasa de mora opcional, respaldo JSON validado campo por campo,
+vista por persona, tasa de mora opcional, respaldo JSON cifrado con contraseña y validado campo por campo,
 recordatorios de vencimiento (pestaña Ajustes), aviso de nueva versión, instalable y offline,
 privacidad (PIN opcional, velo al salir de la app, ocultar montos, notificaciones discretas),
 desplegado en GitHub Pages.

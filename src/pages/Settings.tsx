@@ -1,8 +1,10 @@
 import { useState, type ChangeEvent } from 'react';
+import { BackupPasswordSheet } from '../components/BackupPasswordSheet';
 import { PinSheet, type PinSheetMode } from '../components/PinSheet';
-import { exportBackup, importBackup } from '../db';
+import { exportEncryptedBackup, importBackup } from '../db';
 import { usePrivacy } from '../hooks/usePrivacy';
 import { notificationsSupported } from '../hooks/useReminders';
+import { decryptBackup, isEncryptedBackup, type EncryptedBackup } from '../lib/backupCrypto';
 import { LOCK_AFTER_OPTIONS } from '../lib/privacy';
 import { isLeadDays, loadReminderSettings, saveReminderSettings, type ReminderSettings } from '../lib/settings';
 
@@ -130,18 +132,26 @@ function Reminders() {
   );
 }
 
+function download(name: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  // Revocar de inmediato puede cancelar la descarga (iOS Safari, PWA instalada).
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+type BackupSheet = { mode: 'export' } | { mode: 'import'; envelope: EncryptedBackup };
+
 export function Settings() {
   const [message, setMessage] = useState('');
+  const [sheet, setSheet] = useState<BackupSheet | null>(null);
 
-  async function onExport() {
-    const backup = await exportBackup();
-    const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `prestamos-${backup.exportedAt.slice(0, 10)}.json`;
-    a.click();
-    // Revocar de inmediato puede cancelar la descarga (iOS Safari, PWA instalada).
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  async function onExport(password: string) {
+    const envelope = await exportEncryptedBackup(password);
+    download(`prestamos-${new Date().toISOString().slice(0, 10)}-cifrado.json`, JSON.stringify(envelope));
+    setMessage('Respaldo cifrado exportado.');
   }
 
   async function onImport(e: ChangeEvent<HTMLInputElement>) {
@@ -149,11 +159,26 @@ export function Settings() {
     e.target.value = '';
     if (!file) return;
     if (!confirm('Importar reemplaza todos los datos actuales. ¿Continuar?')) return;
+    setMessage('');
     try {
-      await importBackup(JSON.parse(await file.text()));
+      const raw: unknown = JSON.parse(await file.text());
+      // Los respaldos anteriores al cifrado siguen importándose en claro.
+      if (isEncryptedBackup(raw)) return setSheet({ mode: 'import', envelope: raw });
+      await importBackup(raw);
       setMessage('Respaldo importado.');
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'No se pudo leer el archivo.');
+      setMessage(err instanceof Error && !(err instanceof SyntaxError) ? err.message : 'No se pudo leer el archivo.');
+    }
+  }
+
+  async function onDecrypt(envelope: EncryptedBackup, password: string) {
+    // Contraseña incorrecta: el error queda en la hoja para reintentar.
+    const raw = await decryptBackup(envelope, password);
+    try {
+      await importBackup(raw);
+      setMessage('Respaldo importado.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'No se pudo importar el respaldo.');
     }
   }
 
@@ -166,8 +191,11 @@ export function Settings() {
       <Reminders />
       <div className="card card-pad stack-10">
         <h2>Respaldo</h2>
-        <p className="muted small">Los datos viven solo en este navegador. Exporta un respaldo con regularidad.</p>
-        <button type="button" className="button" onClick={onExport}>
+        <p className="muted small">
+          Los datos viven solo en este navegador. Exporta un respaldo con regularidad: se cifra con una contraseña que
+          debes guardar en un lugar seguro.
+        </p>
+        <button type="button" className="button" onClick={() => setSheet({ mode: 'export' })}>
           Exportar respaldo
         </button>
         <label className="button button-secondary">
@@ -177,6 +205,13 @@ export function Settings() {
         <span className="muted small center-text">Importar reemplaza todos los datos actuales.</span>
         {message && <p role="status" className="alert-ok">{message}</p>}
       </div>
+      {sheet && (
+        <BackupPasswordSheet
+          mode={sheet.mode}
+          onSubmit={(password) => (sheet.mode === 'export' ? onExport(password) : onDecrypt(sheet.envelope, password))}
+          onClose={() => setSheet(null)}
+        />
+      )}
     </section>
   );
 }
