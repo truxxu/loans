@@ -37,7 +37,7 @@ input, select, textarea { font: inherit; color: var(--ink); background: var(--su
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .list { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
 .list-item { display: flex; justify-content: space-between; gap: 12px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); text-decoration: none; }
-.list-item small, td small { display: block; color: var(--muted); }
+.list-item small, td small, dd small { display: block; color: var(--muted); }
 .right { text-align: right; display: grid; gap: 4px; justify-items: end; }
 .amount, .balance, td { font-variant-numeric: tabular-nums; }
 .balance { font-size: 2rem; font-weight: 700; margin: 4px 0 12px; }

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { db, newId } from '../db';
 import { todayISO } from '../lib/interest';
 import { parseAmount } from '../lib/money';
-import type { Currency, InterestType, Loan, RatePeriod } from '../types';
+import { DEFAULT_INTEREST_PERIOD_DAYS, type Currency, type InterestType, type Loan, type RatePeriod } from '../types';
 
 interface FormState {
   borrower: string;
@@ -12,6 +12,7 @@ interface FormState {
   interestType: InterestType;
   interestRate: string;
   ratePeriod: RatePeriod;
+  interestPeriodDays: string;
   startDate: string;
   dueDate: string;
   notes: string;
@@ -24,6 +25,7 @@ const empty = (): FormState => ({
   interestType: 'simple',
   interestRate: '',
   ratePeriod: 'monthly',
+  interestPeriodDays: String(DEFAULT_INTEREST_PERIOD_DAYS),
   startDate: todayISO(),
   dueDate: '',
   notes: '',
@@ -48,8 +50,9 @@ export function LoanFormPage() {
         interestType: loan.interestType,
         interestRate: String(loan.interestRate),
         ratePeriod: loan.ratePeriod,
+        interestPeriodDays: String(loan.interestPeriodDays),
         startDate: loan.startDate,
-        dueDate: loan.dueDate,
+        dueDate: loan.dueDate ?? '',
         notes: loan.notes ?? '',
       });
     });
@@ -63,12 +66,15 @@ export function LoanFormPage() {
     const principal = parseAmount(form.principal);
     const hasInterest = form.interestType !== 'none';
     const rate = hasInterest ? Number(form.interestRate.replace(',', '.')) : 0;
+    const interestPeriodDays = hasInterest ? Number(form.interestPeriodDays) : DEFAULT_INTEREST_PERIOD_DAYS;
 
     if (!form.borrower.trim()) return setError('Escribe a quién le prestas.');
     if (!principal || principal <= 0) return setError('El monto debe ser mayor que cero.');
     if (hasInterest && !(rate > 0)) return setError('La tasa debe ser mayor que cero.');
-    if (!form.dueDate || form.dueDate < form.startDate)
-      return setError('La fecha de pago debe ser igual o posterior a la fecha del préstamo.');
+    if (!Number.isInteger(interestPeriodDays) || interestPeriodDays < 1)
+      return setError('El periodo de pago de intereses debe ser un número entero de días.');
+    if (form.dueDate && form.dueDate < form.startDate)
+      return setError('La fecha de vencimiento debe ser igual o posterior a la fecha del préstamo.');
 
     const loan: Loan = {
       id: existing?.id ?? newId(),
@@ -78,8 +84,9 @@ export function LoanFormPage() {
       interestType: form.interestType,
       interestRate: rate,
       ratePeriod: form.ratePeriod,
+      interestPeriodDays,
       startDate: form.startDate,
-      dueDate: form.dueDate,
+      dueDate: form.dueDate || undefined,
       notes: form.notes.trim() || undefined,
       createdAt: existing?.createdAt ?? Date.now(),
     };
@@ -132,6 +139,14 @@ export function LoanFormPage() {
               <option value="annual">Anual</option>
             </select>
           </label>
+          <label>
+            Pago de intereses cada (días)
+            <input
+              inputMode="numeric"
+              value={form.interestPeriodDays}
+              onChange={(e) => set('interestPeriodDays', e.target.value)}
+            />
+          </label>
         </div>
       )}
 
@@ -141,7 +156,7 @@ export function LoanFormPage() {
           <input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
         </label>
         <label>
-          Fecha de pago
+          Fecha de vencimiento (opcional)
           <input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
         </label>
       </div>

@@ -5,18 +5,26 @@ import type { ISODate, Loan, LoanStatus, Payment } from '../types';
  * deriva de (préstamo + pagos + fecha de corte).
  *
  * Convenciones (ver CLAUDE.md > Reglas de negocio):
- * - Año de 365 días; un mes = 365/12 días. El interés se causa por día.
+ * - Base comercial: año de 360 días y mes de 30, aplicada sobre días calendario reales.
+ *   El interés se causa por día: 35 días al 2% mensual = 2% × 35/30.
  * - Simple: interés sobre el capital pendiente. El interés no pagado no capitaliza.
  * - Compuesto: interés sobre capital + interés pendiente (capitalización continua por días).
  * - Cada pago cubre primero el interés causado y luego el capital.
  * - Después del vencimiento el interés se sigue causando a la misma tasa.
+ * - El vencimiento es opcional; sin vencimiento no hay mora.
+ * - El periodo de pago de intereses (`interestPeriodDays`) es solo informativo.
  */
 
-const DAYS_PER_PERIOD = { monthly: 365 / 12, annual: 365 } as const;
+const DAYS_PER_PERIOD = { monthly: 30, annual: 360 } as const;
 const MS_PER_DAY = 86_400_000;
 
 export function daysBetween(from: ISODate, to: ISODate): number {
   return Math.round((Date.parse(to) - Date.parse(from)) / MS_PER_DAY);
+}
+
+/** Suma días de calendario a una fecha `YYYY-MM-DD` (en UTC, sin depender de la zona horaria). */
+export function addDays(date: ISODate, days: number): ISODate {
+  return new Date(Date.parse(date) + days * MS_PER_DAY).toISOString().slice(0, 10);
 }
 
 export function todayISO(now = new Date()): ISODate {
@@ -45,8 +53,10 @@ export interface LoanState {
   totalPaid: number;
   totalInterestPaid: number;
   status: LoanStatus;
-  /** Positivo = días restantes; negativo = días en mora. */
-  daysToDue: number;
+  /** Positivo = días restantes; negativo = días en mora; null = sin vencimiento. */
+  daysToDue: number | null;
+  /** Desde cuándo hay interés causado sin pagar; null si no hay interés pendiente. */
+  interestPendingSince: ISODate | null;
   ledger: LedgerEntry[];
 }
 
@@ -72,6 +82,7 @@ export function computeLoanState(
   let cursor = loan.startDate;
   let totalPaid = 0;
   let totalInterestPaid = 0;
+  let pendingSince = loan.startDate;
   const ledger: LedgerEntry[] = [];
 
   const advanceTo = (date: ISODate) => {
@@ -92,6 +103,7 @@ export function computeLoanState(
     principal -= toPrincipal;
     totalPaid += payment.amount;
     totalInterestPaid += toInterest;
+    if (Math.round(interest) === 0) pendingSince = payment.date;
 
     ledger.push({
       payment,
@@ -107,8 +119,9 @@ export function computeLoanState(
 
   const interestOutstanding = Math.round(interest);
   const balance = principal + interestOutstanding;
-  const daysToDue = daysBetween(asOf, loan.dueDate);
-  const status: LoanStatus = balance <= 0 ? 'paid' : daysToDue < 0 ? 'overdue' : 'active';
+  const daysToDue = loan.dueDate ? daysBetween(asOf, loan.dueDate) : null;
+  const status: LoanStatus =
+    balance <= 0 ? 'paid' : daysToDue !== null && daysToDue < 0 ? 'overdue' : 'active';
 
   return {
     principalOutstanding: principal,
@@ -118,11 +131,25 @@ export function computeLoanState(
     totalInterestPaid,
     status,
     daysToDue,
+    interestPendingSince: interestOutstanding > 0 ? pendingSince : null,
     ledger,
   };
 }
 
-/** Total a pagar si no se hace ningún abono hasta el vencimiento. */
-export function projectedTotalAtDue(loan: Loan): number {
-  return computeLoanState(loan, [], loan.dueDate).balance;
+/** Total a pagar si no se hace ningún abono hasta el vencimiento; null sin vencimiento. */
+export function projectedTotalAtDue(loan: Loan): number | null {
+  return loan.dueDate ? computeLoanState(loan, [], loan.dueDate).balance : null;
+}
+
+/**
+ * Próxima fecha habitual de pago de intereses (`startDate + k × interestPeriodDays`, k >= 1)
+ * en o después de `asOf`. Si el vencimiento llega antes, devuelve el vencimiento.
+ * Solo informativo: no afecta el estado del préstamo.
+ */
+export function nextInterestDate(loan: Loan, asOf: ISODate = todayISO()): ISODate | null {
+  if (loan.interestType === 'none' || loan.interestRate <= 0) return null;
+  const period = loan.interestPeriodDays;
+  const k = Math.max(1, Math.ceil(daysBetween(loan.startDate, asOf) / period));
+  const next = addDays(loan.startDate, k * period);
+  return loan.dueDate && loan.dueDate >= asOf && loan.dueDate < next ? loan.dueDate : next;
 }

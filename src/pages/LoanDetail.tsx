@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { StatusBadge } from '../components/StatusBadge';
 import { db, deleteLoan, newId } from '../db';
-import { computeLoanState, projectedTotalAtDue, todayISO } from '../lib/interest';
+import { computeLoanState, daysBetween, nextInterestDate, projectedTotalAtDue, todayISO } from '../lib/interest';
 import { formatDate, formatMoney, parseAmount } from '../lib/money';
 
 const RATE_LABEL = { monthly: 'mensual', annual: 'anual' } as const;
@@ -16,7 +16,17 @@ export function LoanDetail() {
     const loan = await db.loans.get(id);
     if (!loan) return { loan: null } as const;
     const payments = await db.payments.where('loanId').equals(id).toArray();
-    return { loan, state: computeLoanState(loan, payments) } as const;
+    const today = todayISO();
+    const state = computeLoanState(loan, payments, today);
+    const nextDate = state.status === 'paid' ? null : nextInterestDate(loan, today);
+    const nextInterest = nextDate && {
+      date: nextDate,
+      amount: computeLoanState(loan, payments, nextDate).interestOutstanding,
+    };
+    const interestLate =
+      state.interestPendingSince !== null &&
+      daysBetween(state.interestPendingSince, today) > loan.interestPeriodDays;
+    return { loan, state, nextInterest, interestLate } as const;
   }, [id]);
 
   const [amount, setAmount] = useState('');
@@ -26,7 +36,8 @@ export function LoanDetail() {
 
   if (!data) return null;
   if (!data.loan) return <p className="empty">Este préstamo no existe. <Link to="/">Volver a la lista</Link></p>;
-  const { loan, state } = data;
+  const { loan, state, nextInterest, interestLate } = data;
+  const projected = projectedTotalAtDue(loan);
   const money = (v: number) => formatMoney(v, loan.currency);
 
   async function addPayment(e: FormEvent) {
@@ -73,14 +84,27 @@ export function LoanDetail() {
           </dd>
         </div>
         <div>
-          <dt>Fecha de pago</dt>
+          <dt>Fecha de vencimiento</dt>
           <dd>
-            {formatDate(loan.dueDate)}
+            {loan.dueDate ? formatDate(loan.dueDate) : 'Sin fecha de vencimiento'}
             {state.status !== 'paid' &&
+              state.daysToDue !== null &&
               (state.daysToDue >= 0 ? ` (faltan ${state.daysToDue} días)` : ` (${-state.daysToDue} días en mora)`)}
           </dd>
         </div>
-        <div><dt>Total al vencimiento sin abonos</dt><dd>{money(projectedTotalAtDue(loan))}</dd></div>
+        {nextInterest && (
+          <div>
+            <dt>Próximo pago de intereses</dt>
+            <dd>
+              {formatDate(nextInterest.date)} — {money(nextInterest.amount)}
+              <small>Cada {loan.interestPeriodDays} días</small>
+              {interestLate && state.interestPendingSince && (
+                <small className="error">Intereses sin pagar desde el {formatDate(state.interestPendingSince)}</small>
+              )}
+            </dd>
+          </div>
+        )}
+        {projected !== null && <div><dt>Total al vencimiento sin abonos</dt><dd>{money(projected)}</dd></div>}
         <div><dt>Total pagado</dt><dd>{money(state.totalPaid)}</dd></div>
         {loan.notes && <div><dt>Notas</dt><dd>{loan.notes}</dd></div>}
       </dl>

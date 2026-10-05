@@ -3,6 +3,8 @@ export type RatePeriod = 'monthly' | 'annual';
 export type InterestType = 'none' | 'simple' | 'compound';
 export type LoanStatus = 'active' | 'overdue' | 'paid';
 
+export const DEFAULT_INTEREST_PERIOD_DAYS = 30;
+
 /** Fecha de calendario sin hora, formato `YYYY-MM-DD`. */
 export type ISODate = string;
 
@@ -18,7 +20,10 @@ export interface Loan {
   ratePeriod: RatePeriod;
   interestType: InterestType;
   startDate: ISODate;
-  dueDate: ISODate;
+  /** Opcional: muchos préstamos no tienen fecha de vencimiento. */
+  dueDate?: ISODate;
+  /** Cada cuántos días se suelen pagar los intereses. Solo informativo; entero >= 1. */
+  interestPeriodDays: number;
   notes?: string;
   createdAt: number;
 }

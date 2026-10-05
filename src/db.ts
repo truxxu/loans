@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Loan, Payment } from './types';
+import { DEFAULT_INTEREST_PERIOD_DAYS, type Loan, type Payment } from './types';
 
 class LoansDB extends Dexie {
   loans!: Table<Loan, string>;
@@ -12,6 +12,17 @@ class LoansDB extends Dexie {
       loans: 'id, borrower, dueDate',
       payments: 'id, loanId, date',
     });
+    // v2: dueDate opcional e interestPeriodDays. Mismos índices.
+    this.version(2)
+      .stores({})
+      .upgrade((tx) =>
+        tx
+          .table<Loan, string>('loans')
+          .toCollection()
+          .modify((loan) => {
+            loan.interestPeriodDays ??= DEFAULT_INTEREST_PERIOD_DAYS;
+          }),
+      );
   }
 }
 
@@ -27,7 +38,7 @@ export async function deleteLoan(id: string): Promise<void> {
 }
 
 export interface Backup {
-  version: 1;
+  version: 2;
   exportedAt: string;
   loans: Loan[];
   payments: Payment[];
@@ -35,16 +46,25 @@ export interface Backup {
 
 export async function exportBackup(): Promise<Backup> {
   const [loans, payments] = await Promise.all([db.loans.toArray(), db.payments.toArray()]);
-  return { version: 1, exportedAt: new Date().toISOString(), loans, payments };
+  return { version: 2, exportedAt: new Date().toISOString(), loans, payments };
 }
 
 /** Reemplaza todos los datos locales por los del respaldo. */
 export async function importBackup(raw: unknown): Promise<void> {
-  const data = raw as Partial<Backup>;
-  if (data?.version !== 1 || !Array.isArray(data.loans) || !Array.isArray(data.payments)) {
+  const data = raw as { version?: number; loans?: unknown; payments?: unknown } | null;
+  if (
+    (data?.version !== 1 && data?.version !== 2) ||
+    !Array.isArray(data.loans) ||
+    !Array.isArray(data.payments)
+  ) {
     throw new Error('El archivo no es un respaldo válido.');
   }
-  const { loans, payments } = data;
+  // v1 no tenía interestPeriodDays.
+  const loans = (data.loans as Loan[]).map((loan) => ({
+    ...loan,
+    interestPeriodDays: loan.interestPeriodDays ?? DEFAULT_INTEREST_PERIOD_DAYS,
+  }));
+  const payments = data.payments as Payment[];
   await db.transaction('rw', db.loans, db.payments, async () => {
     await Promise.all([db.loans.clear(), db.payments.clear()]);
     await db.loans.bulkAdd(loans);

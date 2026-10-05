@@ -1,7 +1,7 @@
 # Préstamos PWA
 
 PWA personal para llevar el control de préstamos hechos a otras personas: destinatario,
-condiciones (monto, tipo de interés, tasa, fecha de pago) e historial de pagos.
+condiciones (monto, tipo de interés, tasa, vencimiento opcional) e historial de pagos.
 Un solo usuario, sin backend, sin cuentas. Los datos viven en IndexedDB.
 
 ## Comandos
@@ -40,13 +40,19 @@ src/
    lo que se persiste. El interés causado se acumula con decimales dentro del motor y
    se redondea solo al exponerlo.
 3. **Fechas como `YYYY-MM-DD`**, sin hora ni zona horaria. Se comparan como strings.
-4. **Causación diaria**: año de 365 días, mes = 365/12 días.
+4. **Causación diaria**, base comercial sobre días calendario reales: año de 360 días,
+   mes de 30. Si se paga a los 35 días se cobran 35 días: 2% mensual × 35/30.
    - Simple: interés sobre el capital pendiente; el interés no pagado no capitaliza.
    - Compuesto: interés sobre capital + interés pendiente.
 5. **Aplicación de pagos**: primero interés causado, luego capital. El excedente se
    reporta como `overpaid`.
 6. **Mora**: después del vencimiento el interés se sigue causando a la misma tasa.
-7. **Modelo de pago**: una sola fecha de vencimiento con abonos libres. No hay cuotas.
+   El vencimiento (`dueDate`) es opcional; sin vencimiento el préstamo nunca queda en mora.
+7. **Modelo de pago**: abonos libres y, como mucho, una fecha de vencimiento. No hay cuotas.
+8. **Periodo de intereses**: los intereses se suelen pagar cada `interestPeriodDays` días
+   (30 por defecto, configurable por préstamo), en `startDate + k × periodo`. Es solo
+   informativo: la app muestra la próxima fecha y el monto estimado, y avisa si hay
+   intereses sin pagar por más de un periodo, pero no cambia el estado.
 
 Cualquier cambio a estas reglas va con tests en `src/lib/interest.test.ts`.
 
