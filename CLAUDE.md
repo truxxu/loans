@@ -25,6 +25,7 @@ React Router (`HashRouter`), `vite-plugin-pwa`. CSS plano con tokens en `:root`
 src/
   types.ts            Loan, Payment y tipos auxiliares
   db.ts               Esquema Dexie, borrado en cascada, exportar/importar respaldo
+  lib/backup.ts       Formato del respaldo y validación campo por campo + tests
   lib/interest.ts     Motor de cálculo (funciones puras) + tests
   lib/money.ts        Parseo y formato de montos y fechas + tests
   lib/loanView.ts     Datos derivados para las vistas (totales, personas, detalle) + tests
@@ -88,7 +89,7 @@ no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
 - [x] Tasa de mora distinta a la tasa corriente
 - [ ] Préstamos en cuotas con plan de amortización
 - [ ] Recordatorios de vencimiento (Notifications API; sin backend solo al abrir la app)
-- [ ] Validar el respaldo importado campo por campo (hoy solo valida la forma general)
+- [x] Validar el respaldo importado campo por campo
 - [ ] Aviso de "nueva versión disponible" en vez de `autoUpdate` silencioso
 - [ ] Tests de componentes (Testing Library)
 - [ ] Deploy (GitHub Pages / Cloudflare Pages); `base: './'` ya lo permite

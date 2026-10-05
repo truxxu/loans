@@ -1,11 +1,6 @@
 import Dexie, { type Table } from 'dexie';
-import { DEFAULT_INTEREST_PERIOD_DAYS, type Loan, type Payment } from './types';
-
-/** Completa los campos que no existían en versiones anteriores (v1: sin interestPeriodDays). */
-const withLoanDefaults = (loan: Loan): Loan => ({
-  ...loan,
-  interestPeriodDays: loan.interestPeriodDays ?? DEFAULT_INTEREST_PERIOD_DAYS,
-});
+import { BACKUP_VERSION, parseBackup, withLoanDefaults, type Backup } from './lib/backup';
+import type { Loan, Payment } from './types';
 
 class LoansDB extends Dexie {
   loans!: Table<Loan, string>;
@@ -52,37 +47,18 @@ export async function deletePayment(id: string): Promise<void> {
   await db.payments.delete(id);
 }
 
-/** v3: `lateInterestRate` opcional en los préstamos. */
-const BACKUP_VERSION = 3;
-
-export interface Backup {
-  version: typeof BACKUP_VERSION;
-  exportedAt: string;
-  loans: Loan[];
-  payments: Payment[];
-}
-
 export async function exportBackup(): Promise<Backup> {
   const [loans, payments] = await Promise.all([db.loans.toArray(), db.payments.toArray()]);
   return { version: BACKUP_VERSION, exportedAt: new Date().toISOString(), loans, payments };
 }
 
-/** Reemplaza todos los datos locales por los del respaldo. */
+/** Reemplaza todos los datos locales por los del respaldo, si es válido campo por campo. */
 export async function importBackup(raw: unknown): Promise<void> {
-  const data = raw as { version?: number; loans?: unknown; payments?: unknown } | null;
-  if (
-    !data ||
-    ![1, 2, BACKUP_VERSION].includes(data.version ?? 0) ||
-    !Array.isArray(data.loans) ||
-    !Array.isArray(data.payments)
-  ) {
-    throw new Error('El archivo no es un respaldo válido.');
-  }
-  const loans = (data.loans as Loan[]).map(withLoanDefaults);
-  const payments = data.payments as Payment[];
+  const data = parseBackup(raw);
+  if ('error' in data) throw new Error(data.error);
   await db.transaction('rw', db.loans, db.payments, async () => {
     await Promise.all([db.loans.clear(), db.payments.clear()]);
-    await db.loans.bulkAdd(loans);
-    await db.payments.bulkAdd(payments);
+    await db.loans.bulkAdd(data.loans);
+    await db.payments.bulkAdd(data.payments);
   });
 }
