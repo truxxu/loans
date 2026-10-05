@@ -7,7 +7,8 @@ Un solo usuario, sin backend, sin cuentas. Los datos viven en IndexedDB.
 ## Comandos
 
 - `npm run dev` — servidor de desarrollo
-- `npm test` — tests (Vitest)
+- `npm test` — tests (Vitest): lógica en `src/lib/*.test.ts` (node) y componentes en
+  `src/**/*.test.tsx` (jsdom + Testing Library + `fake-indexeddb`)
 - `npm run typecheck` — TypeScript
 - `npm run build` — typecheck + build de producción con service worker
 
@@ -36,6 +37,7 @@ src/
   hooks/useLoans.ts   Todos los préstamos con su estado a hoy (useLiveQuery)
   hooks/useReminders.ts  Notificación de vencimientos al abrir/volver a la app
   pages/              LoanList, People, Person, LoanDetail, LoanFormPage, Settings (Ajustes)
+  pages/*.test.tsx    Tests de componentes; utilidades en test/dom.tsx (renderAt, seed, money)
   components/         StatusBadge, Avatar, LoanCard, LoanNotFound, PaymentSheet, TabBar,
                       UpdatePrompt (aviso de nueva versión del service worker)
 ```
@@ -95,5 +97,5 @@ no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
 - [x] Recordatorios de vencimiento (Notifications API; sin backend solo al abrir la app)
 - [x] Validar el respaldo importado campo por campo
 - [x] Aviso de "nueva versión disponible" en vez de `autoUpdate` silencioso
-- [ ] Tests de componentes (Testing Library)
+- [x] Tests de componentes (Testing Library)
 - [ ] Deploy (GitHub Pages / Cloudflare Pages); `base: './'` ya lo permite
