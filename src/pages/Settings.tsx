@@ -11,7 +11,8 @@ export function Settings() {
     a.href = url;
     a.download = `prestamos-${backup.exportedAt.slice(0, 10)}.json`;
     a.click();
-    URL.revokeObjectURL(url);
+    // Revocar de inmediato puede cancelar la descarga (iOS Safari, PWA instalada).
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   async function onImport(e: ChangeEvent<HTMLInputElement>) {

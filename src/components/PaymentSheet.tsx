@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { db, newId, savePayment } from '../db';
 import { todayISO, type LoanState } from '../lib/interest';
 import { formatMoney, parseAmount } from '../lib/money';
+import { paymentDateError } from '../lib/validation';
 import type { Loan, Payment } from '../types';
 
 interface Props {
@@ -41,7 +42,8 @@ export function PaymentSheet({ loan, state, payment, onClose }: Props) {
     e.preventDefault();
     const parsed = parseAmount(amount);
     if (!parsed || parsed <= 0) return setError('El pago debe ser mayor que cero.');
-    if (date < loan.startDate) return setError('El pago no puede ser anterior a la fecha del préstamo.');
+    const dateError = paymentDateError(date, loan.startDate, todayISO());
+    if (dateError) return setError(dateError);
     await savePayment({
       id: payment?.id ?? newId(),
       loanId: loan.id,
@@ -102,6 +104,8 @@ export function PaymentSheet({ loan, state, payment, onClose }: Props) {
               type="date"
               className="input input-sunken"
               value={date}
+              min={loan.startDate}
+              max={todayISO()}
               onChange={(e) => {
                 setDate(e.target.value);
                 setError('');
