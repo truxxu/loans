@@ -1,6 +1,12 @@
 import Dexie, { type Table } from 'dexie';
 import { DEFAULT_INTEREST_PERIOD_DAYS, type Loan, type Payment } from './types';
 
+/** Completa los campos que no existían en versiones anteriores (v1: sin interestPeriodDays). */
+const withLoanDefaults = (loan: Loan): Loan => ({
+  ...loan,
+  interestPeriodDays: loan.interestPeriodDays ?? DEFAULT_INTEREST_PERIOD_DAYS,
+});
+
 class LoansDB extends Dexie {
   loans!: Table<Loan, string>;
   payments!: Table<Payment, string>;
@@ -19,8 +25,8 @@ class LoansDB extends Dexie {
         tx
           .table<Loan, string>('loans')
           .toCollection()
-          .modify((loan) => {
-            loan.interestPeriodDays ??= DEFAULT_INTEREST_PERIOD_DAYS;
+          .modify((loan, ref) => {
+            ref.value = withLoanDefaults(loan);
           }),
       );
   }
@@ -42,8 +48,14 @@ export async function savePayment(payment: Payment): Promise<void> {
   await db.payments.put(payment);
 }
 
+export async function deletePayment(id: string): Promise<void> {
+  await db.payments.delete(id);
+}
+
+const BACKUP_VERSION = 2;
+
 export interface Backup {
-  version: 2;
+  version: typeof BACKUP_VERSION;
   exportedAt: string;
   loans: Loan[];
   payments: Payment[];
@@ -51,24 +63,20 @@ export interface Backup {
 
 export async function exportBackup(): Promise<Backup> {
   const [loans, payments] = await Promise.all([db.loans.toArray(), db.payments.toArray()]);
-  return { version: 2, exportedAt: new Date().toISOString(), loans, payments };
+  return { version: BACKUP_VERSION, exportedAt: new Date().toISOString(), loans, payments };
 }
 
 /** Reemplaza todos los datos locales por los del respaldo. */
 export async function importBackup(raw: unknown): Promise<void> {
   const data = raw as { version?: number; loans?: unknown; payments?: unknown } | null;
   if (
-    (data?.version !== 1 && data?.version !== 2) ||
+    (data?.version !== 1 && data?.version !== BACKUP_VERSION) ||
     !Array.isArray(data.loans) ||
     !Array.isArray(data.payments)
   ) {
     throw new Error('El archivo no es un respaldo válido.');
   }
-  // v1 no tenía interestPeriodDays.
-  const loans = (data.loans as Loan[]).map((loan) => ({
-    ...loan,
-    interestPeriodDays: loan.interestPeriodDays ?? DEFAULT_INTEREST_PERIOD_DAYS,
-  }));
+  const loans = (data.loans as Loan[]).map(withLoanDefaults);
   const payments = data.payments as Payment[];
   await db.transaction('rw', db.loans, db.payments, async () => {
     await Promise.all([db.loans.clear(), db.payments.clear()]);

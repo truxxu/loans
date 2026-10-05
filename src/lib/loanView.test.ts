@@ -6,8 +6,10 @@ import {
   initials,
   listTotals,
   loanDetail,
+  loanItems,
   paidPct,
   pct,
+  sharePct,
   plural,
   sortLoans,
   subtitle,
@@ -118,9 +120,30 @@ describe('listTotals', () => {
     const t = listTotals([overdue, active, paid]);
     expect(t.outstanding).toBe(1_046_666_67 + 1_000_000_00);
     expect(t.overdue).toBe(1_046_666_67);
-    expect(t.overdueCount).toBe(1);
+    expect(t.counts).toEqual({ active: 1, overdue: 1, paid: 1 });
     expect(t.interest).toBe(46_666_67);
     expect(t.openCount).toBe(2);
+  });
+});
+
+describe('loanItems', () => {
+  it('calcula cada préstamo solo con sus pagos y ordena', () => {
+    const asOf = '2025-03-12';
+    const items = loanItems(
+      [loan({ id: 'b', dueDate: undefined }), loan({ id: 'a' })],
+      [pay('a', '2025-01-01', 1_000_000_00)],
+      asOf,
+    );
+    expect(items.map((i) => i.loan.id)).toEqual(['a', 'b']);
+    expect(items[0]!.state.status).toBe('paid');
+    expect(items[1]!.state.totalPaid).toBe(0);
+  });
+});
+
+describe('sharePct', () => {
+  it('proporción acotada; total 0 da 0%', () => {
+    expect(sharePct(1, 4)).toBe('25%');
+    expect(sharePct(0, 0)).toBe('0%');
   });
 });
 
@@ -146,12 +169,12 @@ describe('loanDetail', () => {
     expect(v.dueText).toMatch(/\(faltan 29 días\)$/);
     expect(v.nextInterest).toEqual({ date: '2025-03-02', amount: 40_000_00 });
     // 31 días sin pagar intereses > periodo de 30.
-    expect(v.interestLate).toBe(true);
+    expect(v.interestLateSince).toBe('2025-01-01');
     expect(v.projected).toBe(1_040_000_00);
   });
 
   it('dentro del primer periodo no hay atraso de intereses', () => {
-    expect(loanDetail(loan(), [], '2025-01-20').interestLate).toBe(false);
+    expect(loanDetail(loan(), [], '2025-01-20').interestLateSince).toBeNull();
   });
 
   it('en mora muestra los días de mora', () => {

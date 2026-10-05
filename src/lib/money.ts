@@ -13,15 +13,24 @@ export function parseAmount(input: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-export function formatMoney(minor: number, currency: Currency): string {
-  return new Intl.NumberFormat('es-CO', {
+/** Inverso de `parseAmount`: unidades menores a texto editable en un input ("1500000.5"). */
+export const amountToInput = (minor: number): string => String(minor / 100);
+
+// Construir un Intl.*Format es caro: uno por moneda, creado una sola vez.
+const moneyFormat = (currency: Currency) =>
+  new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency,
     minimumFractionDigits: currency === 'COP' ? 0 : 2,
     maximumFractionDigits: currency === 'COP' ? 0 : 2,
-  }).format(minor / 100);
+  });
+const MONEY_FORMAT: Record<Currency, Intl.NumberFormat> = { COP: moneyFormat('COP'), USD: moneyFormat('USD') };
+const DATE_FORMAT = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeZone: 'UTC' });
+
+export function formatMoney(minor: number, currency: Currency): string {
+  return MONEY_FORMAT[currency].format(minor / 100);
 }
 
 export function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(iso));
+  return DATE_FORMAT.format(new Date(iso));
 }

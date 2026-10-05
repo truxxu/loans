@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { db, newId, savePayment } from '../db';
+import { deletePayment, newId, savePayment } from '../db';
 import { todayISO, type LoanState } from '../lib/interest';
-import { formatMoney, parseAmount } from '../lib/money';
+import { amountToInput, formatMoney, parseAmount } from '../lib/money';
 import { paymentDateError } from '../lib/validation';
 import type { Loan, Payment } from '../types';
 
@@ -15,7 +15,7 @@ interface Props {
 
 export function PaymentSheet({ loan, state, payment, onClose }: Props) {
   const editing = !!payment;
-  const [amount, setAmount] = useState(payment ? String(payment.amount / 100) : '');
+  const [amount, setAmount] = useState(payment ? amountToInput(payment.amount) : '');
   const [date, setDate] = useState(payment?.date ?? todayISO());
   const [note, setNote] = useState(payment?.note ?? '');
   const [error, setError] = useState('');
@@ -57,7 +57,7 @@ export function PaymentSheet({ loan, state, payment, onClose }: Props) {
 
   async function onDelete() {
     if (!payment || !confirm('¿Eliminar este pago?')) return;
-    await db.payments.delete(payment.id);
+    await deletePayment(payment.id);
     onClose();
   }
 
@@ -91,7 +91,7 @@ export function PaymentSheet({ loan, state, payment, onClose }: Props) {
         {quick.length > 0 && (
           <div className="chips-wrap">
             {quick.map((q) => (
-              <button key={q.label} type="button" className="chip-quick" onClick={() => setAmount(String(q.value / 100))}>
+              <button key={q.label} type="button" className="chip-quick" onClick={() => setAmount(amountToInput(q.value))}>
                 {q.label} · <strong>{money(q.value)}</strong>
               </button>
             ))}

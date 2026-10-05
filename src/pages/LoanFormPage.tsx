@@ -1,126 +1,55 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { LoanNotFound } from '../components/LoanNotFound';
 import { db, newId } from '../db';
-import { todayISO } from '../lib/interest';
-import { parseAmount } from '../lib/money';
-import { loanDatesError } from '../lib/validation';
-import { DEFAULT_INTEREST_PERIOD_DAYS, type Currency, type InterestType, type Loan, type RatePeriod } from '../types';
+import { emptyLoanForm, loanToForm, parseLoanForm, type LoanForm } from '../lib/loanForm';
+import type { ISODate, Loan } from '../types';
 
-interface FormState {
-  borrower: string;
-  principal: string;
-  currency: Currency;
-  interestType: InterestType;
-  interestRate: string;
-  ratePeriod: RatePeriod;
-  interestPeriodDays: string;
-  startDate: string;
-  dueDate: string;
-  notes: string;
-}
-
-const empty = (): FormState => ({
-  borrower: '',
-  principal: '',
-  currency: 'COP',
-  interestType: 'simple',
-  interestRate: '',
-  ratePeriod: 'monthly',
-  interestPeriodDays: String(DEFAULT_INTEREST_PERIOD_DAYS),
-  startDate: todayISO(),
-  dueDate: '',
-  notes: '',
-});
+/** Al editar, el formulario no se puede guardar hasta cargar el préstamo. */
+type Load =
+  | { status: 'loading' }
+  | { status: 'missing' }
+  /** `firstPaymentDate`: fecha del primer pago del préstamo que se edita; null si no tiene pagos. */
+  | { status: 'ready'; existing: Loan | null; firstPaymentDate: ISODate | null };
 
 export function LoanFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [form, setForm] = useState<FormState>(empty);
-  const [existing, setExisting] = useState<Loan | null>(null);
-  /** Fecha del primer pago del préstamo que se edita; null si no tiene pagos. */
-  const [firstPaymentDate, setFirstPaymentDate] = useState<string | null>(null);
-  // Al editar, el formulario no se puede guardar hasta cargar el préstamo.
-  const [load, setLoad] = useState<'loading' | 'ready' | 'missing'>(id ? 'loading' : 'ready');
+  const [form, setForm] = useState<LoanForm>(() => emptyLoanForm());
+  const [load, setLoad] = useState<Load>(
+    id ? { status: 'loading' } : { status: 'ready', existing: null, firstPaymentDate: null },
+  );
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!id) return;
     void Promise.all([db.loans.get(id), db.payments.where('loanId').equals(id).sortBy('date')]).then(
       ([loan, payments]) => {
-        if (!loan) return setLoad('missing');
-        setExisting(loan);
-        setFirstPaymentDate(payments[0]?.date ?? null);
-        setForm({
-          borrower: loan.borrower,
-          principal: String(loan.principal / 100),
-          currency: loan.currency,
-          interestType: loan.interestType,
-          interestRate: String(loan.interestRate),
-          ratePeriod: loan.ratePeriod,
-          interestPeriodDays: String(loan.interestPeriodDays),
-          startDate: loan.startDate,
-          dueDate: loan.dueDate ?? '',
-          notes: loan.notes ?? '',
-        });
-        setLoad('ready');
+        if (!loan) return setLoad({ status: 'missing' });
+        setForm(loanToForm(loan));
+        setLoad({ status: 'ready', existing: loan, firstPaymentDate: payments[0]?.date ?? null });
       },
     );
   }, [id]);
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+  const set = <K extends keyof LoanForm>(key: K, value: LoanForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
     setError('');
   };
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (load !== 'ready') return;
-    const principal = parseAmount(form.principal);
-    const hasInterest = form.interestType !== 'none';
-    const rate = hasInterest ? Number(form.interestRate.replace(',', '.')) : 0;
-    const typedPeriod = Number(form.interestPeriodDays);
-    // Sin interés el campo está oculto: se conserva el periodo que tenía (si es válido)
-    // para no perderlo si luego se vuelve a activar el interés.
-    const interestPeriodDays =
-      hasInterest || (Number.isInteger(typedPeriod) && typedPeriod >= 1) ? typedPeriod : DEFAULT_INTEREST_PERIOD_DAYS;
-
-    if (!form.borrower.trim()) return setError('Escribe a quién le prestas.');
-    if (!principal || principal <= 0) return setError('El monto debe ser mayor que cero.');
-    if (hasInterest && !(rate > 0)) return setError('La tasa debe ser mayor que cero.');
-    if (!Number.isInteger(interestPeriodDays) || interestPeriodDays < 1)
-      return setError('El periodo de pago de intereses debe ser un número entero de días.');
-    const datesError = loanDatesError(form.startDate, form.dueDate, firstPaymentDate);
-    if (datesError) return setError(datesError);
-
-    const loan: Loan = {
-      id: existing?.id ?? newId(),
-      borrower: form.borrower.trim(),
-      principal,
-      currency: form.currency,
-      interestType: form.interestType,
-      interestRate: rate,
-      ratePeriod: form.ratePeriod,
-      interestPeriodDays,
-      startDate: form.startDate,
-      dueDate: form.dueDate || undefined,
-      notes: form.notes.trim() || undefined,
-      createdAt: existing?.createdAt ?? Date.now(),
-    };
-    await db.loans.put(loan);
-    navigate(`/prestamo/${loan.id}`, { replace: true });
+    if (load.status !== 'ready') return;
+    const result = parseLoanForm(form, load.existing, load.firstPaymentDate, newId);
+    if ('error' in result) return setError(result.error);
+    await db.loans.put(result.loan);
+    navigate(`/prestamo/${result.loan.id}`, { replace: true });
   }
 
-  if (load === 'missing') {
-    return (
-      <section className="screen screen-sub">
-        <p className="empty">
-          Este préstamo no existe. <Link to="/">Volver a la lista</Link>
-        </p>
-      </section>
-    );
-  }
+  if (load.status === 'missing') return <LoanNotFound />;
+  const ready = load.status === 'ready' ? load : null;
 
-  const seg = <K extends 'interestType' | 'ratePeriod'>(key: K, opts: [FormState[K], string][]) =>
+  const seg = <K extends 'interestType' | 'ratePeriod'>(key: K, opts: [LoanForm[K], string][]) =>
     opts.map(([value, label]) => (
       <button
         key={value}
@@ -141,7 +70,7 @@ export function LoanFormPage() {
             Cancelar
           </button>
         </div>
-        <h1 className="h1-md">{existing ? 'Editar préstamo' : 'Nuevo préstamo'}</h1>
+        <h1 className="h1-md">{id ? 'Editar préstamo' : 'Nuevo préstamo'}</h1>
 
         <label className="field">
           Destinatario
@@ -220,7 +149,7 @@ export function LoanFormPage() {
               type="date"
               className="input"
               value={form.startDate}
-              max={firstPaymentDate ?? undefined}
+              max={ready?.firstPaymentDate ?? undefined}
               onChange={(e) => set('startDate', e.target.value)}
             />
           </label>
@@ -239,7 +168,7 @@ export function LoanFormPage() {
       </section>
 
       <div className="sticky-cta">
-        <button type="submit" className="button" disabled={load !== 'ready'}>
+        <button type="submit" className="button" disabled={!ready}>
           Guardar préstamo
         </button>
       </div>

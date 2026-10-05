@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAmount } from './money';
+import { amountToInput, parseAmount } from './money';
 
 describe('parseAmount', () => {
   it.each([
@@ -16,5 +16,11 @@ describe('parseAmount', () => {
   it('devuelve null si no hay número', () => {
     expect(parseAmount('abc')).toBeNull();
     expect(parseAmount('')).toBeNull();
+  });
+});
+
+describe('amountToInput', () => {
+  it.each([150000000, 150050, 5, 0])('%i ida y vuelta con parseAmount', (minor) => {
+    expect(parseAmount(amountToInput(minor))).toBe(minor);
   });
 });

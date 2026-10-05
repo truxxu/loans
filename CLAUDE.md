@@ -29,9 +29,10 @@ src/
   lib/money.ts        Parseo y formato de montos y fechas + tests
   lib/loanView.ts     Datos derivados para las vistas (totales, personas, detalle) + tests
   lib/validation.ts   Validación de fechas de préstamos y pagos + tests
+  lib/loanForm.ts     Formulario de préstamo: texto ⇄ Loan, validación + tests
   hooks/useLoans.ts   Todos los préstamos con su estado a hoy (useLiveQuery)
   pages/              LoanList, People, Person, LoanDetail, LoanFormPage, Settings (Respaldo)
-  components/         StatusBadge, Avatar, LoanCard, PaymentSheet, TabBar
+  components/         StatusBadge, Avatar, LoanCard, LoanNotFound, PaymentSheet, TabBar
 ```
 
 ## Reglas de negocio

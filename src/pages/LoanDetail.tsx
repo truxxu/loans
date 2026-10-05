@@ -1,10 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { LoanNotFound } from '../components/LoanNotFound';
 import { PaymentSheet } from '../components/PaymentSheet';
 import { StatusBadge } from '../components/StatusBadge';
 import { db, deleteLoan } from '../db';
-import { loanDetail, pct, plural } from '../lib/loanView';
+import { loanDetail, plural, sharePct } from '../lib/loanView';
 import { formatDate, formatMoney } from '../lib/money';
 import type { Payment } from '../types';
 
@@ -26,19 +27,10 @@ export function LoanDetail() {
   }, [id]);
 
   if (!data) return null;
-  if (!data.loan) {
-    return (
-      <section className="screen screen-sub">
-        <p className="empty">
-          Este préstamo no existe. <Link to="/">Volver a la lista</Link>
-        </p>
-      </section>
-    );
-  }
+  if (!data.loan) return <LoanNotFound />;
   const { loan, view } = data;
   const { state } = view;
   const money = (v: number) => formatMoney(v, loan.currency);
-  const balanceBase = state.balance || 1;
 
   const facts: [string, string][] = [
     ['Prestado', `${money(loan.principal)} el ${formatDate(loan.startDate)}`],
@@ -77,8 +69,8 @@ export function LoanDetail() {
 
         <div className="stack-12">
           <div className="split-bar" aria-hidden="true">
-            <div className="brand-bg" style={{ width: pct((100 * state.principalOutstanding) / balanceBase) }} />
-            <div className="gold-bg" style={{ width: pct((100 * state.interestOutstanding) / balanceBase) }} />
+            <div className="brand-bg" style={{ width: sharePct(state.principalOutstanding, state.balance) }} />
+            <div className="gold-bg" style={{ width: sharePct(state.interestOutstanding, state.balance) }} />
           </div>
           <div className="grid-2">
             <div className="stack-2">
@@ -102,8 +94,8 @@ export function LoanDetail() {
               </div>
               <span className="next-amount">{money(view.nextInterest.amount)}</span>
             </div>
-            {view.interestLate && state.interestPendingSince && (
-              <div className="alert-warn">Intereses sin pagar desde el {formatDate(state.interestPendingSince)}</div>
+            {view.interestLateSince && (
+              <div className="alert-warn">Intereses sin pagar desde el {formatDate(view.interestLateSince)}</div>
             )}
           </div>
         )}
@@ -122,35 +114,32 @@ export function LoanDetail() {
             <h2>Historial de pagos</h2>
             <span className="muted small">{plural(history.length, 'pago', 'pagos')}</span>
           </div>
-          {history.map((entry) => {
-            const amt = entry.payment.amount || 1;
-            return (
-              <button
-                key={entry.payment.id}
-                type="button"
-                className="card card-link payment-card"
-                aria-label={`Editar pago del ${formatDate(entry.payment.date)}`}
-                onClick={() => setSheet(entry.payment)}
-              >
-                <div className="payment-top">
-                  <div className="stack-2 min0">
-                    <span className="payment-date">{formatDate(entry.payment.date)}</span>
-                    {entry.payment.note && <span className="muted small">{entry.payment.note}</span>}
-                  </div>
-                  <span className="payment-amount">{money(entry.payment.amount)}</span>
+          {history.map((entry) => (
+            <button
+              key={entry.payment.id}
+              type="button"
+              className="card card-link payment-card"
+              aria-label={`Editar pago del ${formatDate(entry.payment.date)}`}
+              onClick={() => setSheet(entry.payment)}
+            >
+              <div className="payment-top">
+                <div className="stack-2 min0">
+                  <span className="payment-date">{formatDate(entry.payment.date)}</span>
+                  {entry.payment.note && <span className="muted small">{entry.payment.note}</span>}
                 </div>
-                <div className="split-bar thin" aria-hidden="true">
-                  <div className="gold-bg" style={{ width: pct((100 * entry.toInterest) / amt) }} />
-                  <div className="brand-bg" style={{ width: pct((100 * entry.toPrincipal) / amt) }} />
-                </div>
-                <div className="payment-grid">
-                  <div className="stack-2"><span className="muted">A interés</span><span>{money(entry.toInterest)}</span></div>
-                  <div className="stack-2"><span className="muted">A capital</span><span>{money(entry.toPrincipal)}</span></div>
-                  <div className="stack-2 right"><span className="muted">Saldo</span><span>{money(entry.balanceAfter)}</span></div>
-                </div>
-              </button>
-            );
-          })}
+                <span className="payment-amount">{money(entry.payment.amount)}</span>
+              </div>
+              <div className="split-bar thin" aria-hidden="true">
+                <div className="gold-bg" style={{ width: sharePct(entry.toInterest, entry.payment.amount) }} />
+                <div className="brand-bg" style={{ width: sharePct(entry.toPrincipal, entry.payment.amount) }} />
+              </div>
+              <div className="payment-grid">
+                <div className="stack-2"><span className="muted">A interés</span><span>{money(entry.toInterest)}</span></div>
+                <div className="stack-2"><span className="muted">A capital</span><span>{money(entry.toPrincipal)}</span></div>
+                <div className="stack-2 right"><span className="muted">Saldo</span><span>{money(entry.balanceAfter)}</span></div>
+              </div>
+            </button>
+          ))}
           {history.length === 0 && <p className="empty">Todavía no hay pagos registrados.</p>}
         </div>
 

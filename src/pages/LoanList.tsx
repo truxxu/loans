@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { LoanCard } from '../components/LoanCard';
 import { useLoans } from '../hooks/useLoans';
 import { todayISO } from '../lib/interest';
-import { listTotals, plural } from '../lib/loanView';
+import { listTotals, plural, STATUS_LABEL } from '../lib/loanView';
 import { formatDate, formatMoney } from '../lib/money';
 import type { LoanStatus } from '../types';
 
 type Filter = 'all' | LoanStatus;
 const FILTERS: [Filter, string][] = [
   ['all', 'Todos'],
-  ['active', 'Al día'],
-  ['overdue', 'En mora'],
+  ['active', STATUS_LABEL.active],
+  ['overdue', STATUS_LABEL.overdue],
   ['paid', 'Pagados'],
 ];
 
@@ -39,7 +39,7 @@ export function LoanList() {
           <div className="stack-4">
             <span className="muted xsmall">En mora</span>
             <span className="summary-value warn">{cop(totals.overdue)}</span>
-            <span className="muted xsmall">{plural(totals.overdueCount, 'préstamo', 'préstamos')}</span>
+            <span className="muted xsmall">{plural(totals.counts.overdue, 'préstamo', 'préstamos')}</span>
           </div>
           <div className="stack-4">
             <span className="muted xsmall">Intereses pendientes</span>
@@ -60,7 +60,7 @@ export function LoanList() {
           >
             {label}
             <span className="chip-count">
-              {key === 'all' ? items.length : items.filter((i) => i.state.status === key).length}
+              {key === 'all' ? items.length : totals.counts[key]}
             </span>
           </button>
         ))}
