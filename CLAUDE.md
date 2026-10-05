@@ -29,10 +29,13 @@ src/
   lib/interest.ts     Motor de cálculo (funciones puras) + tests
   lib/money.ts        Parseo y formato de montos y fechas + tests
   lib/loanView.ts     Datos derivados para las vistas (totales, personas, detalle) + tests
+  lib/reminders.ts    Qué préstamos recordar y el texto de la notificación + tests
+  lib/settings.ts     Preferencias del dispositivo (recordatorios) en localStorage
   lib/validation.ts   Validación de fechas de préstamos y pagos + tests
   lib/loanForm.ts     Formulario de préstamo: texto ⇄ Loan, validación + tests
   hooks/useLoans.ts   Todos los préstamos con su estado a hoy (useLiveQuery)
-  pages/              LoanList, People, Person, LoanDetail, LoanFormPage, Settings (Respaldo)
+  hooks/useReminders.ts  Notificación de vencimientos al abrir/volver a la app
+  pages/              LoanList, People, Person, LoanDetail, LoanFormPage, Settings (Ajustes)
   components/         StatusBadge, Avatar, LoanCard, LoanNotFound, PaymentSheet, TabBar
 ```
 
@@ -88,7 +91,7 @@ no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
 - [x] Vista por destinatario (varios préstamos a la misma persona)
 - [x] Tasa de mora distinta a la tasa corriente
 - [ ] Préstamos en cuotas con plan de amortización
-- [ ] Recordatorios de vencimiento (Notifications API; sin backend solo al abrir la app)
+- [x] Recordatorios de vencimiento (Notifications API; sin backend solo al abrir la app)
 - [x] Validar el respaldo importado campo por campo
 - [ ] Aviso de "nueva versión disponible" en vez de `autoUpdate` silencioso
 - [ ] Tests de componentes (Testing Library)

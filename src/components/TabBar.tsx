@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 const TABS = [
   { to: '/', label: 'Préstamos', end: true },
   { to: '/personas', label: 'Personas', end: false },
-  { to: '/respaldo', label: 'Respaldo', end: true },
+  { to: '/ajustes', label: 'Ajustes', end: true },
 ];
 
 /** Barra inferior fija; en la lista además muestra el botón "Nuevo préstamo". */

@@ -9,8 +9,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'notification-click.js'],
       workbox: {
+        // Abre/enfoca la app al tocar un recordatorio.
+        importScripts: ['notification-click.js'],
         // Geist viene de Google Fonts; se guarda en caché para que funcione offline.
         runtimeCaching: [
           {
