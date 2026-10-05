@@ -71,4 +71,9 @@ describe('reminderText', () => {
     });
     expect(reminderText(dueReminders(items, 10).slice(1))?.title).toBe('3 préstamos por vencer');
   });
+
+  it('discreto: sin nombres ni montos', () => {
+    expect(reminderText(one('Ana'), true)).toEqual({ title: 'Préstamos', body: '1 préstamo por cobrar (1 en mora).' });
+    expect(reminderText(dueReminders(items, 10).slice(1), true)?.body).toBe('3 préstamos por vencer.');
+  });
 });

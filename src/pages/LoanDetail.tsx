@@ -1,16 +1,19 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { LoanNotFound } from '../components/LoanNotFound';
+import { Money } from '../components/Money';
 import { PaymentSheet } from '../components/PaymentSheet';
 import { StatusBadge } from '../components/StatusBadge';
 import { db, deleteLoan } from '../db';
 import { loanDetail, plural, sharePct } from '../lib/loanView';
-import { formatDate, formatMoney } from '../lib/money';
+import { formatDate } from '../lib/money';
 import type { Payment } from '../types';
 
 /** `undefined` = cerrada; `null` = registrar pago nuevo; Payment = editar ese pago. */
 type SheetState = Payment | null | undefined;
+
+type Fact = [string, ReactNode];
 
 export function LoanDetail() {
   const { id = '' } = useParams();
@@ -30,15 +33,15 @@ export function LoanDetail() {
   if (!data.loan) return <LoanNotFound />;
   const { loan, view } = data;
   const { state } = view;
-  const money = (v: number) => formatMoney(v, loan.currency);
+  const money = (v: number) => <Money value={v} currency={loan.currency} />;
 
-  const facts: [string, string][] = [
-    ['Prestado', `${money(loan.principal)} el ${formatDate(loan.startDate)}`],
+  const facts: Fact[] = [
+    ['Prestado', <>{money(loan.principal)} el {formatDate(loan.startDate)}</>],
     ['Condiciones', view.conditions],
     ['Fecha de vencimiento', view.dueText],
-    ...(view.projected !== null ? [['Total al vencimiento sin abonos', money(view.projected)] as [string, string]] : []),
+    ...(view.projected !== null ? [['Total al vencimiento sin abonos', money(view.projected)] as Fact] : []),
     ['Total pagado', money(state.totalPaid)],
-    ...(loan.notes ? [['Notas', loan.notes] as [string, string]] : []),
+    ...(loan.notes ? [['Notas', loan.notes] as Fact] : []),
   ];
   const history = [...state.ledger].reverse();
 

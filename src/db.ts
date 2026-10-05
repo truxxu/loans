@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import { BACKUP_VERSION, parseBackup, withLoanDefaults, type Backup } from './lib/backup';
+import { encryptBackup, type EncryptedBackup } from './lib/backupCrypto';
 import type { Loan, Payment } from './types';
 
 class LoansDB extends Dexie {
@@ -52,6 +53,11 @@ export async function exportBackup(): Promise<Backup> {
   return { version: BACKUP_VERSION, exportedAt: new Date().toISOString(), loans, payments };
 }
 
+/** El respaldo que se descarga: siempre cifrado con la contraseña que elige el usuario. */
+export async function exportEncryptedBackup(password: string): Promise<EncryptedBackup> {
+  return encryptBackup(await exportBackup(), password);
+}
+
 /** Reemplaza todos los datos locales por los del respaldo, si es válido campo por campo. */
 export async function importBackup(raw: unknown): Promise<void> {
   const data = parseBackup(raw);
@@ -60,5 +66,12 @@ export async function importBackup(raw: unknown): Promise<void> {
     await Promise.all([db.loans.clear(), db.payments.clear()]);
     await db.loans.bulkAdd(data.loans);
     await db.payments.bulkAdd(data.payments);
+  });
+}
+
+/** "Olvidé el PIN": borra préstamos y pagos de este dispositivo. */
+export async function wipeAllData(): Promise<void> {
+  await db.transaction('rw', db.loans, db.payments, async () => {
+    await Promise.all([db.loans.clear(), db.payments.clear()]);
   });
 }

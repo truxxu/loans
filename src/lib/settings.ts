@@ -1,9 +1,9 @@
 import type { ISODate } from '../types';
+import { readItem, readJSON, writeItem } from './storage';
 
 /**
  * Preferencias de este dispositivo (no viajan en el respaldo): los permisos de
- * notificación también son por dispositivo. `localStorage` puede no estar disponible
- * (modo privado, datos bloqueados), así que todo acceso tolera fallos.
+ * notificación también son por dispositivo.
  */
 
 export interface ReminderSettings {
@@ -14,41 +14,21 @@ export interface ReminderSettings {
 
 export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = { enabled: false, leadDays: 3 };
 
-const SETTINGS_KEY = 'prestamos:reminders';
-const LAST_SHOWN_KEY = 'prestamos:reminders:last';
-
-function read(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function write(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Sin almacenamiento la preferencia dura solo esta sesión.
-  }
-}
+const SETTINGS_KEY = 'reminders';
+const LAST_SHOWN_KEY = 'reminders:last';
 
 export const isLeadDays = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 60;
 
 export function loadReminderSettings(): ReminderSettings {
-  try {
-    const raw = JSON.parse(read(SETTINGS_KEY) ?? 'null') as Partial<ReminderSettings> | null;
-    return {
-      enabled: raw?.enabled === true,
-      leadDays: isLeadDays(raw?.leadDays) ? raw.leadDays : DEFAULT_REMINDER_SETTINGS.leadDays,
-    };
-  } catch {
-    return DEFAULT_REMINDER_SETTINGS;
-  }
+  const raw = readJSON(SETTINGS_KEY) as Partial<ReminderSettings> | null;
+  return {
+    enabled: raw?.enabled === true,
+    leadDays: isLeadDays(raw?.leadDays) ? raw.leadDays : DEFAULT_REMINDER_SETTINGS.leadDays,
+  };
 }
 
-export const saveReminderSettings = (settings: ReminderSettings) => write(SETTINGS_KEY, JSON.stringify(settings));
+export const saveReminderSettings = (settings: ReminderSettings) => writeItem(SETTINGS_KEY, JSON.stringify(settings));
 
 /** Último día en que se mostró el recordatorio: como mucho uno al día. */
-export const lastReminderDate = (): ISODate | null => read(LAST_SHOWN_KEY);
-export const setLastReminderDate = (date: ISODate) => write(LAST_SHOWN_KEY, date);
+export const lastReminderDate = (): ISODate | null => readItem(LAST_SHOWN_KEY);
+export const setLastReminderDate = (date: ISODate) => writeItem(LAST_SHOWN_KEY, date);

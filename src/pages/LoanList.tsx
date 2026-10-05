@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { HideAmountsButton } from '../components/HideAmountsButton';
 import { LoanCard } from '../components/LoanCard';
+import { Money } from '../components/Money';
 import { useLoans } from '../hooks/useLoans';
 import { todayISO } from '../lib/interest';
 import { listTotals, plural, STATUS_LABEL } from '../lib/loanView';
-import { formatDate, formatMoney } from '../lib/money';
+import { formatDate } from '../lib/money';
 import type { LoanStatus } from '../types';
 
 type Filter = 'all' | LoanStatus;
@@ -20,7 +22,7 @@ export function LoanList() {
 
   if (!items) return null;
   const totals = listTotals(items);
-  const cop = (v: number) => formatMoney(v, 'COP');
+  const cop = (v: number) => <Money value={v} currency="COP" />;
   const visible = filter === 'all' ? items : items.filter((i) => i.state.status === filter);
 
   return (
@@ -28,6 +30,7 @@ export function LoanList() {
       <header className="screen-head">
         <span className="muted small">Hoy, {formatDate(todayISO())}</span>
         <h1>Préstamos</h1>
+        <HideAmountsButton />
       </header>
 
       <div className="card summary">

@@ -27,21 +27,29 @@ React Router (`HashRouter`), `vite-plugin-pwa`. CSS plano con tokens en `:root`
 ```
 src/
   types.ts            Loan, Payment y tipos auxiliares
+  AppRoutes.tsx       Rutas + PrivacyProvider + TabBar (App le suma SW y recordatorios; los tests lo montan)
   db.ts               Esquema Dexie, borrado en cascada, exportar/importar respaldo
   lib/backup.ts       Formato del respaldo y validación campo por campo + tests
+  lib/backupCrypto.ts Sobre cifrado del respaldo (PBKDF2 + AES-GCM, contraseña propia) + tests
+  lib/base64.ts       Base64 de bytes por bloques (respaldo cifrado, hash del PIN)
   lib/interest.ts     Motor de cálculo (funciones puras) + tests
   lib/money.ts        Parseo y formato de montos y fechas + tests
   lib/loanView.ts     Datos derivados para las vistas (totales, personas, detalle) + tests
   lib/reminders.ts    Qué préstamos recordar y el texto de la notificación + tests
   lib/settings.ts     Preferencias del dispositivo (recordatorios) en localStorage
+  lib/storage.ts      Acceso tolerante a fallos a localStorage (claves `prestamos:*`)
+  lib/privacy.ts      PIN (hash PBKDF2), cuándo volver a bloquear, intentos fallidos + tests
   lib/validation.ts   Validación de fechas de préstamos y pagos + tests
   lib/loanForm.ts     Formulario de préstamo: texto ⇄ Loan, validación + tests
   hooks/useLoans.ts   Todos los préstamos con su estado a hoy (useLiveQuery)
   hooks/useReminders.ts  Notificación de vencimientos al abrir/volver a la app
+  hooks/usePrivacy.tsx   PrivacyProvider: bloqueo con PIN, velo al salir, montos ocultos
   pages/              LoanList, People, Person, LoanDetail, LoanFormPage, Settings (Ajustes)
   pages/*.test.tsx    Tests de componentes; utilidades en test/dom.tsx (renderAt, seed, money)
-  components/         StatusBadge, Avatar, LoanCard, LoanNotFound, PaymentSheet, TabBar,
-                      UpdatePrompt (aviso de nueva versión del service worker)
+  components/         StatusBadge, Avatar, LoanCard, LoanNotFound, Sheet (hoja inferior base), PaymentSheet, TabBar,
+                      UpdatePrompt (aviso de nueva versión del service worker),
+                      Money (monto que se difumina), LockScreen, PinPad, PinSheet,
+                      HideAmountsButton, BackupPasswordSheet (contraseña del respaldo)
 ```
 
 ## Reglas de negocio
@@ -78,15 +86,21 @@ Cualquier cambio a estas reglas va con tests en `src/lib/interest.test.ts`.
 - Lógica de negocio en `src/lib` como funciones puras y testeadas; los componentes solo
   leen de Dexie con `useLiveQuery` y llaman a esas funciones.
 - Cambios al esquema de IndexedDB: nueva `this.version(n)` en `db.ts` con `upgrade` si
-  hace falta, y subir `Backup.version` si cambia el formato del respaldo.
+  hace falta, y subir `Backup.version` si cambia el formato del respaldo. El sobre cifrado
+  (`lib/backupCrypto.ts`) tiene su propia versión, independiente de `Backup.version`.
+- El respaldo se exporta siempre cifrado con una contraseña propia (no el PIN); importar acepta
+  también los respaldos viejos en claro. Lo descifrado pasa por `parseBackup` igual que uno en claro.
 - Botones nombrados por la acción concreta ("Registrar pago", no "Enviar").
+- Montos en la UI siempre con `<Money>`, no `formatMoney` directo, para que "Ocultar montos"
+  los difumine.
 
 ## Estado actual
 
 Funciona de punta a punta: crear/editar/eliminar préstamos, registrar/editar/eliminar pagos
 (hoja inferior), historial con desglose interés/capital, lista con totales y filtros por estado,
-vista por persona, tasa de mora opcional, respaldo JSON validado campo por campo,
+vista por persona, tasa de mora opcional, respaldo JSON cifrado con contraseña y validado campo por campo,
 recordatorios de vencimiento (pestaña Ajustes), aviso de nueva versión, instalable y offline,
+privacidad (PIN opcional, velo al salir de la app, ocultar montos, notificaciones discretas),
 desplegado en GitHub Pages.
 UI móvil, solo tema oscuro (rediseño "Préstamos - Rediseño" de claude.ai/design). El formulario
 no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
@@ -103,3 +117,5 @@ no pide moneda: los préstamos nuevos son COP y los totales suman todo como COP.
 - [x] Aviso de "nueva versión disponible" en vez de `autoUpdate` silencioso
 - [x] Tests de componentes (Testing Library)
 - [x] Deploy en GitHub Pages (`.github/workflows/deploy.yml`, push a `main`)
+- [x] Bloqueo con PIN y ocultar montos. El PIN bloquea la UI, no cifra IndexedDB; si se
+      olvida, "Olvidé el PIN" borra todo. Pendiente posible: desbloqueo con WebAuthn (Face ID)

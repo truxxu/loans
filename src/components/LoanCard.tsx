@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { paidPct, subtitle, type LoanItem } from '../lib/loanView';
-import { formatMoney } from '../lib/money';
 import { Avatar } from './Avatar';
+import { Money } from './Money';
 import { StatusBadge } from './StatusBadge';
 
 /**
@@ -17,12 +17,20 @@ export function LoanCard({ item, from }: { item: LoanItem; from?: string }) {
         {!from && <Avatar name={loan.borrower} />}
         <div className="stack-text">
           <span className="title ellipsis">
-            {from ? `${formatMoney(loan.principal, loan.currency)} prestados` : loan.borrower}
+            {from ? (
+              <>
+                <Money value={loan.principal} currency={loan.currency} /> prestados
+              </>
+            ) : (
+              loan.borrower
+            )}
           </span>
           <span className="muted small">{subtitle(loan, state.status)}</span>
         </div>
         <div className="loan-card-right">
-          <span className="title">{formatMoney(state.balance, loan.currency)}</span>
+          <span className="title">
+            <Money value={state.balance} currency={loan.currency} />
+          </span>
           <StatusBadge status={state.status} />
         </div>
       </div>
