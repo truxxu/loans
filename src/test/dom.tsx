@@ -1,14 +1,11 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
+import { AppRoutes } from '../AppRoutes';
 import { db } from '../db';
-import { PrivacyProvider } from '../hooks/usePrivacy';
 import { formatMoney } from '../lib/money';
-import { LoanDetail } from '../pages/LoanDetail';
-import { LoanFormPage } from '../pages/LoanFormPage';
-import { LoanList } from '../pages/LoanList';
-import { Settings } from '../pages/Settings';
+import { hashPin, savePrivacySettings } from '../lib/privacy';
 import type { Loan, Payment } from '../types';
 
 /**
@@ -36,23 +33,14 @@ afterEach(() => {
 });
 
 /**
- * Monta las rutas de la app en `path` dentro de `PrivacyProvider`, sin `App` (que registra
- * el service worker).
+ * Monta las rutas de la app en `path`, sin `App` (que registra el service worker).
  * Devuelve también un `user` de user-event.
  */
 export function renderAt(path: string) {
   const user = userEvent.setup();
   const view = render(
     <MemoryRouter initialEntries={[path]}>
-      <PrivacyProvider>
-        <Routes>
-          <Route path="/" element={<LoanList />} />
-          <Route path="/nuevo" element={<LoanFormPage />} />
-          <Route path="/prestamo/:id" element={<LoanDetail />} />
-          <Route path="/prestamo/:id/editar" element={<LoanFormPage />} />
-          <Route path="/ajustes" element={<Settings />} />
-        </Routes>
-      </PrivacyProvider>
+      <AppRoutes />
     </MemoryRouter>,
   );
   return { user, ...view };
@@ -90,6 +78,11 @@ export const money = (minor: number) => formatMoney(minor, 'COP').replace(/\s/g,
 export async function seed(loans: Loan[], payments: Payment[] = []) {
   await db.loans.bulkAdd(loans);
   await db.payments.bulkAdd(payments);
+}
+
+/** Activa el bloqueo con `pin` antes de montar la app. */
+export async function withPin(pin: string, lockAfterMs = 60_000) {
+  savePrivacySettings({ pin: await hashPin(pin), lockAfterMs, hideAmounts: false });
 }
 
 /** Escribe un PIN en el teclado numérico (pantalla de bloqueo u hoja del PIN). */

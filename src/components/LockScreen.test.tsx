@@ -2,14 +2,10 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
-import { hashPin, loadPinAttempts, loadPrivacySettings, savePinAttempts, savePrivacySettings } from '../lib/privacy';
-import { renderAt, seed, testLoan, TODAY, typePin } from '../test/dom';
+import { loadPinAttempts, loadPrivacySettings, savePinAttempts } from '../lib/privacy';
+import { renderAt, seed, testLoan, TODAY, typePin, withPin } from '../test/dom';
 
 const PIN = '2580';
-
-async function withPin(lockAfterMs = 60_000) {
-  savePrivacySettings({ pin: await hashPin(PIN), lockAfterMs, hideAmounts: false });
-}
 
 let visibility: DocumentVisibilityState = 'visible';
 Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
@@ -37,7 +33,7 @@ describe('Bloqueo con PIN', () => {
 
   it('con PIN pide el código y no muestra datos hasta acertarlo', async () => {
     await seed([testLoan()]);
-    await withPin();
+    await withPin(PIN);
     const { user } = renderAt('/');
 
     expect(screen.getByText('Ingresa tu PIN')).toBeTruthy();
@@ -53,14 +49,14 @@ describe('Bloqueo con PIN', () => {
 
   it('acepta el teclado físico', async () => {
     await seed([testLoan()]);
-    await withPin();
+    await withPin(PIN);
     const { user } = renderAt('/');
     await user.keyboard(PIN);
     expect(await screen.findByText('Ana')).toBeTruthy();
   });
 
   it('tras cinco fallos hace esperar, también después de recargar', async () => {
-    await withPin();
+    await withPin(PIN);
     const { user, unmount } = renderAt('/');
     for (let i = 1; i <= 5; i++) {
       await typePin(user, '0000');
@@ -77,7 +73,7 @@ describe('Bloqueo con PIN', () => {
 
   it('vuelve a bloquear si estuvo en segundo plano más del tiempo configurado', async () => {
     await seed([testLoan()]);
-    await withPin(60_000);
+    await withPin(PIN, 60_000);
     const { user, container } = renderAt('/');
     await typePin(user, PIN);
     await screen.findByText('Ana');
@@ -97,7 +93,7 @@ describe('Bloqueo con PIN', () => {
   });
 
   it('abrir el selector de archivos para importar no vuelve a bloquear al volver', async () => {
-    await withPin(0);
+    await withPin(PIN, 0);
     const { user } = renderAt('/ajustes');
     await typePin(user, PIN);
     const input = await screen.findByLabelText('Importar respaldo');
@@ -117,7 +113,7 @@ describe('Bloqueo con PIN', () => {
 
   it('"Olvidé el PIN" borra todos los datos y los ajustes', async () => {
     await seed([testLoan()]);
-    await withPin();
+    await withPin(PIN);
     savePinAttempts({ failed: 3, lockedUntil: 0 });
     const { user } = renderAt('/');
 

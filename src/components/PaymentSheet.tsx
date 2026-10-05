@@ -5,6 +5,7 @@ import { amountToInput, parseAmount } from '../lib/money';
 import { paymentDateError } from '../lib/validation';
 import type { Loan, Payment } from '../types';
 import { Money } from './Money';
+import { Sheet } from './Sheet';
 
 interface Props {
   loan: Loan;
@@ -21,17 +22,12 @@ export function PaymentSheet({ loan, state, payment, onClose }: Props) {
   const [note, setNote] = useState(payment?.note ?? '');
   const [error, setError] = useState('');
   const amountRef = useRef<HTMLInputElement>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
 
   useEffect(() => {
     amountRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-    const quick = editing
+  const quick = editing
     ? []
     : [
         { label: 'Interés pendiente', value: state.interestOutstanding },
@@ -61,81 +57,69 @@ export function PaymentSheet({ loan, state, payment, onClose }: Props) {
     onClose();
   }
 
-  const title = editing ? 'Editar pago' : 'Registrar pago';
-
   return (
-    <div className="sheet-layer">
-      <div className="sheet-backdrop" onClick={onClose} />
-      <form className="sheet" role="dialog" aria-modal="true" aria-label={title} onSubmit={onSubmit}>
-        <div className="sheet-handle" aria-hidden="true" />
-        <div className="sheet-head">
-          <h2>{title}</h2>
-          <button type="button" className="link-muted" onClick={onClose}>
-            Cerrar
-          </button>
+    <Sheet title={editing ? 'Editar pago' : 'Registrar pago'} onClose={onClose} onSubmit={onSubmit}>
+      <label className="amount-big">
+        <span className="sr-only">Monto</span>
+        <span className="amount-symbol" aria-hidden="true">$</span>
+        <input
+          ref={amountRef}
+          inputMode="decimal"
+          placeholder="0"
+          value={amount}
+          onChange={(e) => {
+            setAmount(e.target.value);
+            setError('');
+          }}
+        />
+      </label>
+      {quick.length > 0 && (
+        <div className="chips-wrap">
+          {quick.map((q) => (
+            <button key={q.label} type="button" className="chip-quick" onClick={() => setAmount(amountToInput(q.value))}>
+              {q.label} · <strong>
+                <Money value={q.value} currency={loan.currency} />
+              </strong>
+            </button>
+          ))}
         </div>
-        <label className="amount-big">
-          <span className="sr-only">Monto</span>
-          <span className="amount-symbol" aria-hidden="true">$</span>
+      )}
+      <div className="grid-sheet">
+        <label className="field">
+          Fecha
           <input
-            ref={amountRef}
-            inputMode="decimal"
-            placeholder="0"
-            value={amount}
+            type="date"
+            className="input input-sunken"
+            value={date}
+            min={loan.startDate}
+            max={todayISO()}
             onChange={(e) => {
-              setAmount(e.target.value);
+              setDate(e.target.value);
               setError('');
             }}
           />
         </label>
-        {quick.length > 0 && (
-          <div className="chips-wrap">
-            {quick.map((q) => (
-              <button key={q.label} type="button" className="chip-quick" onClick={() => setAmount(amountToInput(q.value))}>
-                {q.label} · <strong>
-                  <Money value={q.value} currency={loan.currency} />
-                </strong>
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="grid-sheet">
-          <label className="field">
-            Fecha
-            <input
-              type="date"
-              className="input input-sunken"
-              value={date}
-              min={loan.startDate}
-              max={todayISO()}
-              onChange={(e) => {
-                setDate(e.target.value);
-                setError('');
-              }}
-            />
-          </label>
-          <label className="field">
-            Nota
-            <input
-              className="input input-sunken"
-              placeholder="Opcional"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </label>
-        </div>
-        {error && <p role="alert" className="error">{error}</p>}
-        <div className="stack-6">
-          <button type="submit" className="button">
-            {editing ? 'Guardar cambios' : 'Registrar pago'}
+        <label className="field">
+          Nota
+          <input
+            className="input input-sunken"
+            placeholder="Opcional"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </label>
+      </div>
+      {error && <p role="alert" className="error">{error}</p>}
+      <div className="stack-6">
+        <button type="submit" className="button">
+          {editing ? 'Guardar cambios' : 'Registrar pago'}
+        </button>
+        {editing && (
+          <button type="button" className="button-danger" onClick={onDelete}>
+            Eliminar pago
           </button>
-          {editing && (
-            <button type="button" className="button-danger" onClick={onDelete}>
-              Eliminar pago
-            </button>
-          )}
-        </div>
-      </form>
-    </div>
+        )}
+      </div>
+    </Sheet>
   );
 }

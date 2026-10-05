@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { usePinWait, usePrivacy } from '../hooks/usePrivacy';
+import { useState } from 'react';
+import { usePinEntry, usePrivacy } from '../hooks/usePrivacy';
 import { PinPad } from './PinPad';
+import { Sheet } from './Sheet';
 
 export type PinSheetMode = 'create' | 'change' | 'remove';
 type Step = 'current' | 'new' | 'confirm';
@@ -22,29 +23,14 @@ export function PinSheet({ mode, onClose }: { mode: PinSheetMode; onClose: () =>
   const { settings, setPin, checkPin, update } = usePrivacy();
   const [step, setStep] = useState<Step>(mode === 'create' ? 'new' : 'current');
   const [first, setFirst] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const { waiting, message: waitMessage, setWaitUntil } = usePinWait();
+  const [saving, setSaving] = useState(false);
+  const { verify, busy, waiting, waitMessage, error, setError } = usePinEntry(checkPin);
   const blocked = step === 'current' && waiting;
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   async function onSubmit(pin: string) {
     setError('');
     if (step === 'current') {
-      setBusy(true);
-      const result = await checkPin(pin);
-      setBusy(false);
-      if (!result.ok) {
-        setWaitUntil(result.lockedUntil);
-        return setError('PIN incorrecto.');
-      }
+      if (!(await verify(pin))) return;
       if (mode === 'remove') {
         update({ pin: null });
         return onClose();
@@ -59,7 +45,7 @@ export function PinSheet({ mode, onClose }: { mode: PinSheetMode; onClose: () =>
       setStep('new');
       return setError('Los PIN no coinciden. Inténtalo de nuevo.');
     }
-    setBusy(true);
+    setSaving(true);
     await setPin(pin);
     onClose();
   }
@@ -67,29 +53,24 @@ export function PinSheet({ mode, onClose }: { mode: PinSheetMode; onClose: () =>
   const length = step === 'current' ? settings.pin?.length : step === 'confirm' ? first.length : undefined;
 
   return (
-    <div className="sheet-layer">
-      <div className="sheet-backdrop" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={TITLE[mode]}>
-        <div className="sheet-handle" aria-hidden="true" />
-        <div className="sheet-head">
-          <h2>{TITLE[mode]}</h2>
-          <button type="button" className="link-muted" onClick={onClose}>
-            Cerrar
-          </button>
-        </div>
-        <div className="stack-4 center-text">
-          <span className="title">{PROMPT[step]}</span>
-          {blocked || error ? (
-            <p role="alert" className="error">
-              {blocked ? waitMessage : error}
-            </p>
-          ) : (
-            <span className="small">&nbsp;</span>
-          )}
-        </div>
-        {/* key: cada paso empieza con el teclado vacío. */}
-        <PinPad key={step} length={length} disabled={busy || blocked} onSubmit={(pin) => void onSubmit(pin)} />
+    <Sheet title={TITLE[mode]} onClose={onClose}>
+      <div className="stack-4 center-text">
+        <span className="title">{PROMPT[step]}</span>
+        {blocked || error ? (
+          <p role="alert" className="error">
+            {blocked ? waitMessage : error}
+          </p>
+        ) : (
+          <span className="small">&nbsp;</span>
+        )}
       </div>
-    </div>
+      {/* key: cada paso empieza con el teclado vacío. */}
+      <PinPad
+        key={step}
+        length={length}
+        disabled={busy || saving || blocked}
+        onSubmit={(pin) => void onSubmit(pin)}
+      />
+    </Sheet>
   );
 }

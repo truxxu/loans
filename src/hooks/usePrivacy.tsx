@@ -16,14 +16,14 @@ import {
 } from '../lib/privacy';
 import { clearAppStorage } from '../lib/storage';
 
-export type PinCheck = { ok: true } | { ok: false; lockedUntil: number };
-
 interface Privacy {
   settings: PrivacySettings;
   update: (patch: Partial<PrivacySettings>) => void;
   setPin: (pin: string) => Promise<void>;
   /** Comprueba el PIN actual (cambiar o quitar el PIN). Comparte intentos y espera con el desbloqueo. */
-  checkPin: (pin: string) => Promise<PinCheck>;
+  checkPin: (pin: string) => Promise<boolean>;
+  /** Hasta cuándo no se aceptan intentos de PIN (ms epoch; 0 = sin espera). */
+  pinLockedUntil: number;
   lock: () => void;
   /** Llamar al abrir el selector de archivos: esa salida de la app no vuelve a bloquear. */
   expectFilePicker: () => void;
@@ -38,13 +38,16 @@ export function usePrivacy(): Privacy {
 }
 
 /**
- * Espera por intentos fallidos de PIN, con cuenta regresiva. Arranca con la persistida,
- * para que recargar o cerrar la hoja no la reinicie.
+ * Ingreso de un PIN (pantalla de bloqueo u hoja del PIN): envío, error y la espera por
+ * intentos fallidos con cuenta regresiva. La espera vive en el provider, así que cerrar
+ * la hoja no la reinicia.
  */
-export function usePinWait() {
-  const [waitUntil, setWaitUntil] = useState(() => loadPinAttempts().lockedUntil);
+export function usePinEntry(check: (pin: string) => Promise<boolean>) {
+  const { pinLockedUntil } = usePrivacy();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const [, tick] = useState(0);
-  const seconds = Math.ceil((waitUntil - Date.now()) / 1000);
+  const seconds = Math.ceil((pinLockedUntil - Date.now()) / 1000);
   const waiting = seconds > 0;
 
   useEffect(() => {
@@ -53,7 +56,16 @@ export function usePinWait() {
     return () => clearInterval(id);
   }, [waiting]);
 
-  return { waiting, message: `Demasiados intentos. Espera ${seconds} s.`, setWaitUntil };
+  async function verify(pin: string): Promise<boolean> {
+    setError('');
+    setBusy(true);
+    const ok = await check(pin);
+    setBusy(false);
+    if (!ok) setError('PIN incorrecto.');
+    return ok;
+  }
+
+  return { verify, busy, waiting, waitMessage: `Demasiados intentos. Espera ${seconds} s.`, error, setError };
 }
 
 /** App instalada: el selector de apps captura la pantalla; en una pestaña no hace falta. */
@@ -69,6 +81,7 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState(loadPrivacySettings);
   const [locked, setLocked] = useState(() => settings.pin !== null);
   const [veiled, setVeiled] = useState(false);
+  const [pinLockedUntil, setPinLockedUntil] = useState(() => loadPinAttempts().lockedUntil);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const pickerOpenedAt = useRef<number | null>(null);
@@ -122,25 +135,26 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
 
   // Desbloquear, cambiar y quitar el PIN cuentan los mismos intentos: si no, quien tenga
   // el teléfono con la app abierta podría probar PIN sin espera desde Ajustes.
-  const checkPin = useCallback(async (pin: string): Promise<PinCheck> => {
+  const checkPin = useCallback(async (pin: string): Promise<boolean> => {
     const stored = settingsRef.current.pin;
-    if (!stored) return { ok: true };
+    if (!stored) return true;
     const attempts = loadPinAttempts();
-    if (attempts.lockedUntil > Date.now()) return { ok: false, lockedUntil: attempts.lockedUntil };
+    if (attempts.lockedUntil > Date.now()) return false;
     if (await verifyPin(pin, stored)) {
       savePinAttempts(NO_ATTEMPTS);
-      return { ok: true };
+      return true;
     }
     const next = registerFailure(attempts, Date.now());
     savePinAttempts(next);
-    return { ok: false, lockedUntil: next.lockedUntil };
+    setPinLockedUntil(next.lockedUntil);
+    return false;
   }, []);
 
   const unlock = useCallback(
-    async (pin: string): Promise<PinCheck> => {
-      const result = await checkPin(pin);
-      if (result.ok) setLocked(false);
-      return result;
+    async (pin: string): Promise<boolean> => {
+      const ok = await checkPin(pin);
+      if (ok) setLocked(false);
+      return ok;
     },
     [checkPin],
   );
@@ -152,6 +166,7 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
     await wipeAllData();
     clearAppStorage();
     setSettings(loadPrivacySettings());
+    setPinLockedUntil(0);
     setLocked(false);
   }
 
@@ -161,6 +176,7 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
       update,
       setPin: async (pin) => update({ pin: await hashPin(pin) }),
       checkPin,
+      pinLockedUntil,
       lock: () => {
         if (settingsRef.current.pin) setLocked(true);
       },
@@ -168,7 +184,7 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
         pickerOpenedAt.current = Date.now();
       },
     }),
-    [settings, update, checkPin],
+    [settings, update, checkPin, pinLockedUntil],
   );
 
   return (

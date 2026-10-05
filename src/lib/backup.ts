@@ -35,7 +35,7 @@ type Fields = Record<string, unknown>;
 
 class BackupError extends Error {}
 
-const isRecord = (v: unknown): v is Fields => typeof v === 'object' && v !== null && !Array.isArray(v);
+export const isRecord = (v: unknown): v is Fields => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isText = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
 const isCount = (v: unknown): v is number => Number.isInteger(v) && (v as number) > 0;
 const isRate = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;

@@ -34,7 +34,7 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
  * Título y cuerpo de una sola notificación que resume todos los recordatorios; null si no hay.
- * `discreet` (bloqueo con PIN o montos ocultos): sin nombres ni montos, que la notificación
+ * `discreet` (`discreetNotifications`): sin nombres ni montos, que la notificación
  * se ve en la pantalla de bloqueo del teléfono.
  */
 export function reminderText(reminders: Reminder[], discreet = false): { title: string; body: string } | null {

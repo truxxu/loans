@@ -13,6 +13,8 @@ import type { Payment } from '../types';
 /** `undefined` = cerrada; `null` = registrar pago nuevo; Payment = editar ese pago. */
 type SheetState = Payment | null | undefined;
 
+type Fact = [string, ReactNode];
+
 export function LoanDetail() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
@@ -33,13 +35,13 @@ export function LoanDetail() {
   const { state } = view;
   const money = (v: number) => <Money value={v} currency={loan.currency} />;
 
-  const facts: [string, ReactNode][] = [
+  const facts: Fact[] = [
     ['Prestado', <>{money(loan.principal)} el {formatDate(loan.startDate)}</>],
     ['Condiciones', view.conditions],
     ['Fecha de vencimiento', view.dueText],
-    ...(view.projected !== null ? [['Total al vencimiento sin abonos', money(view.projected)] as [string, ReactNode]] : []),
+    ...(view.projected !== null ? [['Total al vencimiento sin abonos', money(view.projected)] as Fact] : []),
     ['Total pagado', money(state.totalPaid)],
-    ...(loan.notes ? [['Notas', loan.notes] as [string, ReactNode]] : []),
+    ...(loan.notes ? [['Notas', loan.notes] as Fact] : []),
   ];
   const history = [...state.ledger].reverse();
 

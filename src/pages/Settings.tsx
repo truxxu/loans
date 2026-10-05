@@ -161,20 +161,18 @@ export function Settings() {
     if (!file) return;
     if (!confirm('Importar reemplaza todos los datos actuales. ¿Continuar?')) return;
     setMessage('');
+    let raw: unknown;
     try {
-      const raw: unknown = JSON.parse(await file.text());
-      // Los respaldos anteriores al cifrado siguen importándose en claro.
-      if (isEncryptedBackup(raw)) return setSheet({ mode: 'import', envelope: raw });
-      await importBackup(raw);
-      setMessage('Respaldo importado.');
-    } catch (err) {
-      setMessage(err instanceof Error && !(err instanceof SyntaxError) ? err.message : 'No se pudo leer el archivo.');
+      raw = JSON.parse(await file.text());
+    } catch {
+      return setMessage('No se pudo leer el archivo.');
     }
+    // Los respaldos anteriores al cifrado siguen importándose en claro.
+    if (isEncryptedBackup(raw)) setSheet({ mode: 'import', envelope: raw });
+    else await restore(raw);
   }
 
-  async function onDecrypt(envelope: EncryptedBackup, password: string) {
-    // Contraseña incorrecta: el error queda en la hoja para reintentar.
-    const raw = await decryptBackup(envelope, password);
+  async function restore(raw: unknown) {
     try {
       await importBackup(raw);
       setMessage('Respaldo importado.');
@@ -182,6 +180,9 @@ export function Settings() {
       setMessage(err instanceof Error ? err.message : 'No se pudo importar el respaldo.');
     }
   }
+
+  // Contraseña incorrecta: `decryptBackup` lanza y el error queda en la hoja para reintentar.
+  const onDecrypt = async (envelope: EncryptedBackup, password: string) => restore(await decryptBackup(envelope, password));
 
   return (
     <section className="screen">

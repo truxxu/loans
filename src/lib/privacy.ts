@@ -36,12 +36,13 @@ export const LOCK_AFTER_OPTIONS: readonly [number, string][] = [
   [15 * 60_000, '15 min'],
 ];
 
+/** Notificaciones sin nombres ni montos (se ven en la pantalla de bloqueo del teléfono). */
+export const discreetNotifications = (s: PrivacySettings) => s.pin !== null || s.hideAmounts;
+
 export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = { pin: null, lockAfterMs: 60_000, hideAmounts: false };
 
 const SETTINGS_KEY = 'privacy';
 const ATTEMPTS_KEY = 'privacy:attempts';
-
-export const isValidPin = (text: string) => new RegExp(`^\\d{${PIN_MIN},${PIN_MAX}}$`).test(text);
 
 const isStoredPin = (v: unknown): v is StoredPin => {
   const p = v as Partial<StoredPin> | null;

@@ -4,9 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
 import { BACKUP_VERSION, type Backup } from '../lib/backup';
 import { decryptBackup, encryptBackup, isEncryptedBackup } from '../lib/backupCrypto';
-import { hashPin, loadPinAttempts, loadPrivacySettings, savePrivacySettings, verifyPin } from '../lib/privacy';
+import { loadPinAttempts, loadPrivacySettings, verifyPin } from '../lib/privacy';
 import { loadReminderSettings } from '../lib/settings';
-import { renderAt, seed, testLoan, typePin } from '../test/dom';
+import { renderAt, seed, testLoan, typePin, withPin } from '../test/dom';
 
 const file = (data: unknown) => new File([JSON.stringify(data)], 'respaldo.json', { type: 'application/json' });
 
@@ -132,7 +132,7 @@ describe('Settings', () => {
   });
 
   it('cambiar y quitar el PIN piden el actual', async () => {
-    savePrivacySettings({ pin: await hashPin('1111'), lockAfterMs: 60_000, hideAmounts: false });
+    await withPin('1111');
     const { user } = renderAt('/ajustes');
     await typePin(user, '1111'); // pantalla de bloqueo
     await user.click(await screen.findByRole('button', { name: 'Cambiar PIN' }));
@@ -154,7 +154,7 @@ describe('Settings', () => {
   });
 
   it('cambiar el PIN cuenta los intentos fallidos igual que la pantalla de bloqueo', async () => {
-    savePrivacySettings({ pin: await hashPin('1111'), lockAfterMs: 60_000, hideAmounts: false });
+    await withPin('1111');
     const { user } = renderAt('/ajustes');
     await typePin(user, '1111'); // pantalla de bloqueo
     await user.click(await screen.findByRole('button', { name: 'Cambiar PIN' }));

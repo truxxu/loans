@@ -2,9 +2,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_PRIVACY_SETTINGS,
+  discreetNotifications,
   hashPin,
   hiddenByPicker,
-  isValidPin,
   loadPinAttempts,
   loadPrivacySettings,
   lockoutMs,
@@ -19,11 +19,6 @@ import {
 beforeEach(() => localStorage.clear());
 
 describe('PIN', () => {
-  it('acepta de 4 a 6 dígitos y nada más', () => {
-    expect(['1234', '12345', '123456'].every(isValidPin)).toBe(true);
-    expect(['123', '1234567', '12a4', ' 1234', ''].some(isValidPin)).toBe(false);
-  });
-
   it('guarda un hash con sal, no el PIN, y lo verifica', async () => {
     const stored = await hashPin('2580');
     expect(JSON.stringify(stored)).not.toContain('2580');
@@ -37,6 +32,15 @@ describe('PIN', () => {
     const [a, b] = await Promise.all([hashPin('1111'), hashPin('1111')]);
     expect(a.salt).not.toBe(b.salt);
     expect(a.hash).not.toBe(b.hash);
+  });
+});
+
+describe('discreetNotifications', () => {
+  it('es discreta con PIN o con montos ocultos', async () => {
+    const base = DEFAULT_PRIVACY_SETTINGS;
+    expect(discreetNotifications(base)).toBe(false);
+    expect(discreetNotifications({ ...base, hideAmounts: true })).toBe(true);
+    expect(discreetNotifications({ ...base, pin: await hashPin('2580') })).toBe(true);
   });
 });
 

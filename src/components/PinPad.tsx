@@ -14,16 +14,12 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 export function PinPad({ length, disabled = false, onSubmit }: Props) {
   const [digits, setDigits] = useState('');
   const max = length ?? PIN_MAX;
-  const submitRef = useRef(onSubmit);
-  submitRef.current = onSubmit;
-  const disabledRef = useRef(disabled);
-  disabledRef.current = disabled;
 
-  const add = (d: string) => !disabledRef.current && setDigits((p) => (p.length < max ? p + d : p));
+  const add = (d: string) => !disabled && setDigits((p) => (p.length < max ? p + d : p));
   const back = () => setDigits((p) => p.slice(0, -1));
   const submit = (pin: string) => {
     setDigits('');
-    submitRef.current(pin);
+    onSubmit(pin);
   };
 
   useEffect(() => {

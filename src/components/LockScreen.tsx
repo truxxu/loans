@@ -1,27 +1,15 @@
-import { useState } from 'react';
-import { usePinWait, type PinCheck } from '../hooks/usePrivacy';
+import { usePinEntry } from '../hooks/usePrivacy';
 import { PinPad } from './PinPad';
 
 interface Props {
   pinLength: number;
-  unlock: (pin: string) => Promise<PinCheck>;
+  unlock: (pin: string) => Promise<boolean>;
   onForgot: () => void;
 }
 
 /** Pantalla de bloqueo. Mientras se muestra, las rutas no se montan: no hay datos en el DOM. */
 export function LockScreen({ pinLength, unlock, onForgot }: Props) {
-  const [error, setError] = useState('');
-  const [checking, setChecking] = useState(false);
-  const { waiting, message: waitMessage, setWaitUntil } = usePinWait();
-
-  async function onSubmit(pin: string) {
-    setChecking(true);
-    const result = await unlock(pin);
-    setChecking(false);
-    if (result.ok) return;
-    setWaitUntil(result.lockedUntil);
-    setError('PIN incorrecto.');
-  }
+  const { verify, busy, waiting, waitMessage, error } = usePinEntry(unlock);
 
   return (
     <section className="lock-screen" aria-label="App bloqueada">
@@ -39,11 +27,8 @@ export function LockScreen({ pinLength, unlock, onForgot }: Props) {
       </div>
       <PinPad
         length={pinLength}
-        disabled={checking || waiting}
-        onSubmit={(pin) => {
-          setError('');
-          void onSubmit(pin);
-        }}
+        disabled={busy || waiting}
+        onSubmit={(pin) => void verify(pin)}
       />
       <button type="button" className="link-muted" onClick={onForgot}>
         Olvidé el PIN

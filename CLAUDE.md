@@ -27,6 +27,7 @@ React Router (`HashRouter`), `vite-plugin-pwa`. CSS plano con tokens en `:root`
 ```
 src/
   types.ts            Loan, Payment y tipos auxiliares
+  AppRoutes.tsx       Rutas + PrivacyProvider + TabBar (App le suma SW y recordatorios; los tests lo montan)
   db.ts               Esquema Dexie, borrado en cascada, exportar/importar respaldo
   lib/backup.ts       Formato del respaldo y validación campo por campo + tests
   lib/backupCrypto.ts Sobre cifrado del respaldo (PBKDF2 + AES-GCM, contraseña propia) + tests
@@ -45,7 +46,7 @@ src/
   hooks/usePrivacy.tsx   PrivacyProvider: bloqueo con PIN, velo al salir, montos ocultos
   pages/              LoanList, People, Person, LoanDetail, LoanFormPage, Settings (Ajustes)
   pages/*.test.tsx    Tests de componentes; utilidades en test/dom.tsx (renderAt, seed, money)
-  components/         StatusBadge, Avatar, LoanCard, LoanNotFound, PaymentSheet, TabBar,
+  components/         StatusBadge, Avatar, LoanCard, LoanNotFound, Sheet (hoja inferior base), PaymentSheet, TabBar,
                       UpdatePrompt (aviso de nueva versión del service worker),
                       Money (monto que se difumina), LockScreen, PinPad, PinSheet,
                       HideAmountsButton, BackupPasswordSheet (contraseña del respaldo)

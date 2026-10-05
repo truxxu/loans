@@ -1,5 +1,5 @@
 import { fromBase64, toBase64 } from './base64';
-import type { Backup } from './backup';
+import { isRecord, type Backup } from './backup';
 
 /**
  * Respaldo cifrado: el `Backup` serializado dentro de un sobre AES-GCM con clave PBKDF2 a
@@ -8,7 +8,7 @@ import type { Backup } from './backup';
  * `BACKUP_VERSION`. AES-GCM autentica: contraseña incorrecta o archivo alterado ⇒ error.
  */
 
-export const ENCRYPTED_FORMAT = 'prestamos-backup-encrypted';
+const ENCRYPTED_FORMAT = 'prestamos-backup-encrypted';
 export const BACKUP_PASSWORD_MIN = 8;
 const PBKDF2_ITERATIONS = 600_000;
 
@@ -24,7 +24,6 @@ export const DECRYPT_ERROR = 'Contraseña incorrecta o archivo dañado.';
 
 export const isValidBackupPassword = (text: string) => text.length >= BACKUP_PASSWORD_MIN;
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isBase64 = (v: unknown): v is string => typeof v === 'string' && v !== '' && /^[A-Za-z0-9+/]+={0,2}$/.test(v);
 
 /** ¿Es un sobre cifrado bien formado? Un respaldo en claro devuelve false. */
